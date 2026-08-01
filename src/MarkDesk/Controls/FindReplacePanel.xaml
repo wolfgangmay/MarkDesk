@@ -29,19 +29,27 @@
         <Border.Effect>
             <DropShadowEffect BlurRadius="10" Opacity="0.25" ShadowDepth="2" />
         </Border.Effect>
-        <StackPanel>
-            <DockPanel Margin="0,0,0,6">
-                <Button DockPanel.Dock="Right" Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
-                        FontSize="12" Width="24" Height="24" Margin="6,0,0,0"
-                        Background="Transparent" BorderThickness="0"
-                        Foreground="{DynamicResource ContentBrush}"
-                        Click="Close_Click" ToolTip="Close (Esc)" />
-                <TextBox x:Name="FindBox" KeyDown="Input_KeyDown" TextChanged="FindBox_TextChanged" />
-            </DockPanel>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-            <TextBox x:Name="ReplaceBox" Margin="0,0,0,6" KeyDown="Input_KeyDown" />
+            <Button Grid.Row="0" HorizontalAlignment="Right" Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
+                    FontSize="12" Width="24" Height="24" Margin="0,0,0,6"
+                    Background="Transparent" BorderThickness="0"
+                    Foreground="{DynamicResource ContentBrush}"
+                    Click="Close_Click" ToolTip="Close (Esc)" />
 
-            <WrapPanel Margin="0,0,0,4">
+            <TextBox Grid.Row="1" x:Name="FindBox" Margin="0,0,0,6"
+                     KeyDown="Input_KeyDown" TextChanged="FindBox_TextChanged" />
+
+            <TextBox Grid.Row="2" x:Name="ReplaceBox" Margin="0,0,0,6" KeyDown="Input_KeyDown" />
+
+            <WrapPanel Grid.Row="3" Margin="0,0,0,4">
                 <ToggleButton x:Name="MatchCase" Content="Aa" Width="34" Margin="0,0,4,0"
                               ToolTip="Match case" />
                 <ToggleButton x:Name="WholeWords" Content="W" Width="34" Margin="0,0,8,0"
@@ -54,8 +62,8 @@
                         Padding="10,2" />
             </WrapPanel>
 
-            <TextBlock x:Name="Status" Text="" FontSize="11"
+            <TextBlock Grid.Row="4" x:Name="Status" Text="" FontSize="11"
                        Foreground="{DynamicResource MutedBrush}" Margin="0,2,0,0" />
-        </StackPanel>
+        </Grid>
     </Border>
 </UserControl>
