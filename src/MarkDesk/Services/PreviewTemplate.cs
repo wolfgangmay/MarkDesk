@@ -66,9 +66,9 @@ div.warning,div.danger {{ border-left:4px solid #cf222e; background:#cf222e14; }
 div.note,div.info {{ border-left:4px solid #0969da; background:#0969da14; }}
 div.tip {{ border-left:4px solid #1a7f37; background:#1a7f3714; }}
 div.success {{ border-left:4px solid #1f883d; background:#1f883d14; }}
-div[class] {{ padding:8px 16px; margin:16px 0; border-radius:4px; }}
-div[class] > :first-child {{ margin-top:0; }}
-div[class] > :last-child {{ margin-bottom:0; }}
+div.warning,div.danger,div.note,div.info,div.tip,div.success {{ padding:8px 16px; margin:16px 0; border-radius:4px; }}
+div.warning > :first-child,div.danger > :first-child,div.note > :first-child,div.info > :first-child,div.tip > :first-child,div.success > :first-child {{ margin-top:0; }}
+div.warning > :last-child,div.danger > :last-child,div.note > :last-child,div.info > :last-child,div.tip > :last-child,div.success > :last-child {{ margin-bottom:0; }}
 /* GitHub-style alerts (> [!NOTE] etc.) */
 .markdown-alert {{ padding:8px 16px; margin:16px 0; border-left:4px solid var(--border); border-radius:4px; }}
 .markdown-alert > :first-child {{ margin-top:0; }}

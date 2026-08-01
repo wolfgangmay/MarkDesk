@@ -43,8 +43,8 @@ foreach ($font in $fonts) {
     Get-File "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/fonts/$font" "$vendor\katex\fonts\$font"
 }
 
-# Mermaid 11.4.1 (MIT) - jsDelivr
-Write-Host 'Mermaid 11.4.1'
-Get-File 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js' "$vendor\mermaid\mermaid.min.js"
+# Mermaid 11.16.0 (MIT) - jsDelivr
+Write-Host 'Mermaid 11.16.0'
+Get-File 'https://cdn.jsdelivr.net/npm/mermaid@11.16.0/dist/mermaid.min.js' "$vendor\mermaid\mermaid.min.js"
 
 Write-Host 'All vendor assets up to date.'
