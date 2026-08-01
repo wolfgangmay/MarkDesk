@@ -150,7 +150,7 @@ h1,h2,h3 {{ page-break-after:avoid; }}
     mermaid.initialize({{
       startOnLoad:false,
       theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default',
-      securityLevel:'strict'
+      securityLevel:'loose'
     }});
     document.querySelectorAll('pre code.language-mermaid').forEach((code) => {{
       const pre = code.parentElement;
@@ -159,7 +159,15 @@ h1,h2,h3 {{ page-break-after:avoid; }}
       div.textContent = code.textContent;
       pre.replaceWith(div);
     }});
-    if (document.querySelectorAll('.mermaid').length) mermaid.run();
+    var mNodes = document.querySelectorAll('.mermaid');
+    if (mNodes.length) {{
+      mermaid.run().catch(function(err){{
+        Array.prototype.forEach.call(mNodes, function(el){{
+          if(!el.querySelector('svg'))
+            el.innerHTML = '<pre style=""color:#c00;white-space:pre-wrap"">Mermaid error: ' + String(err && err.message || err).replace(/</g,'&lt;') + '</pre>';
+        }});
+      }});
+    }}
   }}
 </script>
 </body>
