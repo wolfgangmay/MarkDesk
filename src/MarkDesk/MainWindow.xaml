@@ -159,15 +159,17 @@
         <Border DockPanel.Dock="Top" Background="{DynamicResource BarBgBrush}"
                 BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1">
             <DockPanel Height="46">
-                <Menu DockPanel.Dock="Left" Background="Transparent" VerticalAlignment="Center"
+                <Menu x:Name="MainMenu" DockPanel.Dock="Left" Background="Transparent" VerticalAlignment="Center"
                       Foreground="{DynamicResource ContentBrush}">
                     <Menu.ItemContainerStyle>
                         <Style TargetType="MenuItem">
+                            <EventSetter Event="SubmenuOpened" Handler="Menu_SubmenuOpened" />
                             <Setter Property="Foreground" Value="{DynamicResource ContentBrush}" />
                             <Setter Property="Padding" Value="14,4" />
                             <Setter Property="ItemContainerStyle">
                                 <Setter.Value>
                                     <Style TargetType="MenuItem">
+                                        <EventSetter Event="SubmenuOpened" Handler="Menu_SubmenuOpened" />
                                         <Setter Property="Foreground" Value="{DynamicResource ContentBrush}" />
                                         <Setter Property="Padding" Value="14,4" />
                                     </Style>

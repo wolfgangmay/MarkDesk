@@ -130,6 +130,8 @@ public partial class MainWindow : Window
             Resources[SystemColors.MenuBarBrushKey] = Brush(0x25, 0x25, 0x26);
             Resources[SystemColors.HighlightBrushKey] = Brush(0x44, 0x4A, 0x52);
             Resources[SystemColors.ControlTextBrushKey] = Brush(0xE6, 0xE6, 0xE6);
+            Resources["MenuPopupBrush"] = Brush(0x2D, 0x2D, 0x30);
+            Resources["MenuPopupBorderBrush"] = Brush(0x3F, 0x3F, 0x46);
         }
         else
         {
@@ -149,11 +151,43 @@ public partial class MainWindow : Window
             Resources[SystemColors.MenuBarBrushKey] = Brush(0xFF, 0xFF, 0xFF);
             Resources[SystemColors.HighlightBrushKey] = Brush(0xCC, 0xE4, 0xF7);
             Resources[SystemColors.ControlTextBrushKey] = Brush(0x1F, 0x1F, 0x1F);
+            Resources["MenuPopupBrush"] = Brush(0xF0, 0xF0, 0xF0);
+            Resources["MenuPopupBorderBrush"] = Brush(0x99, 0x99, 0x99);
         }
 
         Editor.ApplyTheme(dark);
+        ApplyOpenSubmenus();
         if (_previewVisible)
             RenderNow();
+    }
+
+    private void Menu_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (sender is MenuItem mi)
+            ApplySubmenuTheme(mi);
+    }
+
+    private void ApplySubmenuTheme(MenuItem mi)
+    {
+        if (mi.Template.FindName("SubMenuBorder", mi) is Border border)
+        {
+            border.Background = (Brush)Resources["MenuPopupBrush"];
+            border.BorderBrush = (Brush)Resources["MenuPopupBorderBrush"];
+        }
+    }
+
+    private void ApplyOpenSubmenus()
+    {
+        foreach (var top in MainMenu.Items.OfType<MenuItem>())
+            RefreshOpenSubmenu(top);
+    }
+
+    private void RefreshOpenSubmenu(MenuItem mi)
+    {
+        if (mi.IsSubmenuOpen)
+            ApplySubmenuTheme(mi);
+        foreach (var child in mi.Items.OfType<MenuItem>())
+            RefreshOpenSubmenu(child);
     }
 
     private void ThemeToggle_Click(object sender, RoutedEventArgs e)
