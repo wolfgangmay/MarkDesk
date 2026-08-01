@@ -124,6 +124,16 @@ h1,h2,h3 {{ page-break-after:avoid; }}
       bq.insertBefore(h, p);
     }});
   }})();
+  (function(){{
+    document.addEventListener('click', function(e){{
+      var a = e.target.closest && e.target.closest('a');
+      if(!a) return;
+      var href = a.getAttribute('href');
+      if(!href || href.charAt(0) !== '#' || href.length <= 1) return;
+      var el = document.getElementById(href.slice(1));
+      if(el){{ e.preventDefault(); el.scrollIntoView({{behavior:'smooth'}}); }}
+    }});
+  }})();
   if (window.hljs) {{ hljs.highlightAll(); }}
   if (window.renderMathInElement) {{
     renderMathInElement(document.body, {{
