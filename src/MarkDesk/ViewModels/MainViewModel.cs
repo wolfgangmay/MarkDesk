@@ -33,6 +33,7 @@ public partial class MainViewModel : ObservableObject
         _markdownRenderer = markdownRenderer;
         _previewTemplate = previewTemplate;
         ViewMode = _settingsService.Current.DefaultViewMode;
+        ThemeMode = _settingsService.Current.ThemeMode;
         Encoding = _currentEncoding.DisplayName;
         UpdateTitle();
         UpdateWordCount();
@@ -49,6 +50,11 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private ViewMode _viewMode;
+
+    [ObservableProperty]
+    private ThemeMode _themeMode;
+
+    public bool IsPreviewDark => ThemeService.IsDark(ThemeMode);
 
     [ObservableProperty]
     private int _caretLine = 1;
@@ -111,7 +117,7 @@ public partial class MainViewModel : ObservableObject
     public string BuildPreviewDocument()
     {
         var body = _markdownRenderer.RenderToHtml(DocumentText);
-        return _previewTemplate.Build(body);
+        return _previewTemplate.Build(body, IsPreviewDark);
     }
 
     public bool IsEditActive
@@ -208,6 +214,13 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnIsDirtyChanged(bool value) => UpdateTitle();
     partial void OnFilePathChanged(string? value) => UpdateTitle();
+
+    partial void OnThemeModeChanged(ThemeMode value)
+    {
+        _settingsService.Current.ThemeMode = value;
+        _settingsService.Save();
+        OnPropertyChanged(nameof(IsPreviewDark));
+    }
 
     partial void OnViewModeChanged(ViewMode value)
     {

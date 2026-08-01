@@ -39,6 +39,9 @@ AppPackages/
 *.tmp
 *.bak
 
+## Generated documents (export/test artifacts)
+*.pdf
+
 ## OS
 Thumbs.db
 ehthumbs.db

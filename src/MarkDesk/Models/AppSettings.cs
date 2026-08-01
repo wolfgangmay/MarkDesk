@@ -13,10 +13,18 @@ public enum PdfPageSize
     Letter
 }
 
+public enum ThemeMode
+{
+    System,
+    Light,
+    Dark
+}
+
 public sealed class AppSettings
 {
     public int LayoutThresholdPx { get; set; } = 960;
     public ViewMode DefaultViewMode { get; set; } = ViewMode.Preview;
+    public ThemeMode ThemeMode { get; set; } = ThemeMode.System;
     public string AssetsFolderName { get; set; } = "assets";
     public string ImageNamePattern { get; set; } = "img-{yyyyMMdd-HHmmss}-{n}";
     public bool ScrollSync { get; set; } = true;

@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using MarkDesk.Models;
@@ -50,7 +51,15 @@ public partial class MainWindow : Window
 
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         SizeChanged += (_, _) => ApplyLayout();
-        Loaded += (_, _) => { ApplyLayout(); _fileWatcher.Watch(ViewModel.FilePath); };
+        Loaded += (_, _) =>
+        {
+            ApplyTheme(ViewModel.IsPreviewDark);
+            ApplyLayout();
+            _fileWatcher.Watch(ViewModel.FilePath);
+            PopulateRecent();
+            UpdateZoomLabel();
+        };
+        Preview.ZoomChanged += (_, _) => UpdateZoomLabel();
         PreviewKeyDown += OnPreviewKeyDown;
         Editor.ScrollChanged += OnEditorScroll;
         _fileWatcher.ExternalChanged += (_, _) => Dispatcher.BeginInvoke(OnExternalChange);
@@ -86,6 +95,8 @@ public partial class MainWindow : Window
     {
         if (e.PropertyName == nameof(ViewModel.ViewMode))
             ApplyLayout();
+        else if (e.PropertyName == nameof(ViewModel.IsPreviewDark))
+            ApplyTheme(ViewModel.IsPreviewDark);
         else if (e.PropertyName == nameof(ViewModel.DocumentText) && _previewVisible)
         {
             _debounceTimer.Stop();
@@ -96,6 +107,49 @@ public partial class MainWindow : Window
     }
 
     private enum LayoutState { EditOnly, PreviewOnly, SplitWide, SplitTabbed }
+
+    private static SolidColorBrush Brush(byte r, byte g, byte b) => new(Color.FromRgb(r, g, b));
+
+    private void ApplyTheme(bool dark)
+    {
+        if (dark)
+        {
+            Resources["WindowBgBrush"] = Brush(0x1E, 0x1E, 0x1E);
+            Resources["BarBgBrush"] = Brush(0x25, 0x25, 0x26);
+            Resources["ToneBgBrush"] = Brush(0x2D, 0x2D, 0x2D);
+            Resources["ContentBrush"] = Brush(0xE6, 0xE6, 0xE6);
+            Resources["MutedBrush"] = Brush(0x9A, 0x9A, 0x9A);
+            Resources["DividerBrush"] = Brush(0x3F, 0x3F, 0x46);
+            Resources["HoverBrush"] = Brush(0x3A, 0x3A, 0x3A);
+            Resources["PressedBrush"] = Brush(0x4A, 0x4A, 0x4A);
+            Resources["AccentBrush"] = Brush(0x4A, 0xA3, 0xE3);
+            Resources["AccentSoftBrush"] = Brush(0x1E, 0x3A, 0x5F);
+            Resources["AccentTextBrush"] = Brush(0x6C, 0xB6, 0xF4);
+        }
+        else
+        {
+            Resources["WindowBgBrush"] = Brush(0xFF, 0xFF, 0xFF);
+            Resources["BarBgBrush"] = Brush(0xFF, 0xFF, 0xFF);
+            Resources["ToneBgBrush"] = Brush(0xF3, 0xF3, 0xF3);
+            Resources["ContentBrush"] = Brush(0x1F, 0x1F, 0x1F);
+            Resources["MutedBrush"] = Brush(0x6E, 0x6E, 0x6E);
+            Resources["DividerBrush"] = Brush(0xE5, 0xE5, 0xE5);
+            Resources["HoverBrush"] = Brush(0xF0, 0xF0, 0xF0);
+            Resources["PressedBrush"] = Brush(0xE0, 0xE0, 0xE0);
+            Resources["AccentBrush"] = Brush(0x00, 0x67, 0xC0);
+            Resources["AccentSoftBrush"] = Brush(0xE8, 0xF1, 0xFB);
+            Resources["AccentTextBrush"] = Brush(0x00, 0x5F, 0xB8);
+        }
+
+        Editor.ApplyTheme(dark);
+        if (_previewVisible)
+            RenderNow();
+    }
+
+    private void ThemeToggle_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.ThemeMode = ViewModel.IsPreviewDark ? Models.ThemeMode.Light : Models.ThemeMode.Dark;
+    }
 
     private void ApplyLayout()
     {
@@ -193,6 +247,13 @@ public partial class MainWindow : Window
 
     private void OnPreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (e.Key == Key.D0 && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            e.Handled = true;
+            Preview.ResetZoom();
+            UpdateZoomLabel();
+            return;
+        }
         if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control && Clipboard.ContainsImage())
         {
             e.Handled = true;
@@ -240,11 +301,12 @@ public partial class MainWindow : Window
         var dialog = new SettingsDialog(svm, (int)ActualWidth) { Owner = this };
         dialog.ShowDialog();
 
+        ViewModel.ThemeMode = svm.ThemeMode;
         _debounceTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(50, ViewModel.RenderDebounceMs));
         ApplyLayout();
     }
 
-    private void Recent_SubmenuOpened(object sender, RoutedEventArgs e)
+    private void PopulateRecent()
     {
         RecentMenu.Items.Clear();
         var recent = ViewModel.RecentFiles;
@@ -257,16 +319,32 @@ public partial class MainWindow : Window
         foreach (var path in recent)
         {
             var captured = path;
-            var item = new MenuItem { Header = path };
+            var item = new MenuItem { Header = Path.GetFileName(path), ToolTip = path };
             item.Click += (_, _) => ViewModel.OpenPath(captured);
             RecentMenu.Items.Add(item);
         }
 
         RecentMenu.Items.Add(new Separator());
         var clear = new MenuItem { Header = "Clear list" };
-        clear.Click += (_, _) => ViewModel.ClearRecent();
+        clear.Click += (_, _) => { ViewModel.ClearRecent(); PopulateRecent(); };
         RecentMenu.Items.Add(clear);
     }
+
+    private void UpdateZoomLabel()
+    {
+        ZoomLabel.Text = $"{(int)Math.Round(Preview.PreviewZoom * 100)}%";
+    }
+
+    private void Recent_SubmenuOpened(object sender, RoutedEventArgs e) => PopulateRecent();
+
+    private void Find_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.ViewMode == ViewMode.Preview)
+            ViewModel.ViewMode = ViewMode.Edit;
+        Editor.ShowSearch();
+    }
+
+    private void Replace_Click(object sender, RoutedEventArgs e) => Find_Click(sender, e);
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {

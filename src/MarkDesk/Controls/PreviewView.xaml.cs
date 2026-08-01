@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using MarkDesk.Models;
 using Microsoft.Web.WebView2.Core;
 
@@ -18,6 +19,10 @@ public partial class PreviewView : UserControl
     private bool _initialized;
     private Task _initTask = Task.CompletedTask;
     private readonly SemaphoreSlim _navigationLock = new(1, 1);
+    private double _previewZoom = 1.0;
+
+    public double PreviewZoom => _previewZoom;
+    public event EventHandler? ZoomChanged;
 
     private static string AssetsFolder =>
         Path.Combine(AppContext.BaseDirectory, "Assets", "web");
@@ -165,10 +170,72 @@ public partial class PreviewView : UserControl
         try
         {
             WebView.CoreWebView2.NavigateToString(html);
+            await WaitNavigationAsync();
+            await ApplyZoomAsync();
         }
         finally
         {
             _navigationLock.Release();
+        }
+    }
+
+    private Task WaitNavigationAsync()
+    {
+        var navDone = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        ulong targetNavigationId = 0;
+        var waitingForStart = true;
+
+        void Starting(object? s, CoreWebView2NavigationStartingEventArgs e)
+        {
+            if (!waitingForStart)
+                return;
+            waitingForStart = false;
+            targetNavigationId = e.NavigationId;
+        }
+
+        void Completed(object? s, CoreWebView2NavigationCompletedEventArgs e)
+        {
+            if (waitingForStart || e.NavigationId != targetNavigationId)
+                return;
+            WebView.CoreWebView2.NavigationCompleted -= Completed;
+            WebView.CoreWebView2.NavigationStarting -= Starting;
+            navDone.TrySetResult(e.IsSuccess);
+        }
+
+        WebView.CoreWebView2.NavigationStarting += Starting;
+        WebView.CoreWebView2.NavigationCompleted += Completed;
+        return navDone.Task;
+    }
+
+    private void WebView_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == 0 || !_initialized)
+            return;
+        e.Handled = true;
+        _previewZoom = Math.Clamp(Math.Round(_previewZoom + (e.Delta > 0 ? 0.1 : -0.1), 2), 0.3, 3.0);
+        _ = ApplyZoomAsync();
+        ZoomChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void ResetZoom()
+    {
+        _previewZoom = 1.0;
+        _ = ApplyZoomAsync();
+        ZoomChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private async Task ApplyZoomAsync()
+    {
+        if (!_initialized)
+            return;
+        var z = _previewZoom.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        try
+        {
+            await WebView.CoreWebView2.ExecuteScriptAsync($"document.body.style.zoom={z}");
+        }
+        catch
+        {
+            // WebView2 temporarily unavailable; zoom reapplied on next render.
         }
     }
 

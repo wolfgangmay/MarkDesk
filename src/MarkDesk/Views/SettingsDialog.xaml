@@ -8,7 +8,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Settings" Height="460" Width="460"
+        Title="Settings" Height="500" Width="460"
         ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
         ShowInTaskbar="False">
     <Grid Margin="16">
@@ -19,6 +19,8 @@
 
         <Grid Grid.Row="0">
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -68,6 +70,12 @@
             <TextBlock Grid.Row="9" Grid.Column="0" Text="PDF page size:" VerticalAlignment="Center" Margin="0,8,0,0"/>
             <ComboBox Grid.Row="9" Grid.Column="1" Margin="0,8,0,0"
                       ItemsSource="{Binding PageSizes}" SelectedItem="{Binding PdfPageSize}"/>
+
+            <TextBlock Grid.Row="10" Grid.ColumnSpan="2" Text="Appearance" FontWeight="Bold" Margin="0,16,0,8"/>
+
+            <TextBlock Grid.Row="11" Grid.Column="0" Text="Theme:" VerticalAlignment="Center"/>
+            <ComboBox Grid.Row="11" Grid.Column="1"
+                      ItemsSource="{Binding ThemeModes}" SelectedItem="{Binding ThemeMode}"/>
         </Grid>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">

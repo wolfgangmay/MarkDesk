@@ -30,16 +30,42 @@ public partial class MarkdownEditor : UserControl
 
     private bool _suppress;
     private ScrollViewer? _scrollViewer;
+    private SearchPanel? _searchPanel;
 
     public MarkdownEditor()
     {
         InitializeComponent();
         LoadMarkdownHighlighting();
-        SearchPanel.Install(Editor);
+        _searchPanel = SearchPanel.Install(Editor);
 
         Editor.TextChanged += (_, _) => SyncToProperty();
         Editor.TextArea.Caret.PositionChanged += (_, _) => CaretPositionChanged?.Invoke(this, EventArgs.Empty);
         Loaded += OnLoaded;
+    }
+
+    public void ShowSearch()
+    {
+        Editor.Focus();
+        _searchPanel?.Open();
+    }
+
+    public void ApplyTheme(bool dark)
+    {
+        var area = Editor.TextArea;
+        if (dark)
+        {
+            var bg = new SolidColorBrush(Color.FromRgb(0x1E, 0x1E, 0x1E));
+            var fg = new SolidColorBrush(Color.FromRgb(0xD4, 0xD4, 0xD4));
+            Editor.Background = bg;
+            area.Background = bg;
+            area.Foreground = fg;
+        }
+        else
+        {
+            Editor.Background = Brushes.White;
+            area.Background = Brushes.White;
+            area.Foreground = new SolidColorBrush(Color.FromRgb(0x1F, 0x1F, 0x1F));
+        }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
