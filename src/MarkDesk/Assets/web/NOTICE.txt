@@ -6,4 +6,7 @@ highlight.js (vendor/highlight/) - https://highlightjs.org - BSD-3-Clause
 KaTeX (vendor/katex/) - https://katex.org - MIT License
   Downloaded from jsDelivr (https://cdn.jsdelivr.net/npm/katex@0.16.11/)
 
-Both are distributed unmodified under their original licenses.
+Mermaid (vendor/mermaid/) - https://mermaid.js.org - MIT License
+  Downloaded from jsDelivr (https://cdn.jsdelivr.net/npm/mermaid@11.4.1/)
+
+All are distributed unmodified under their original licenses.

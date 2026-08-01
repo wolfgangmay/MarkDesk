@@ -10,12 +10,13 @@ public sealed class PreviewTemplate
     private const string KatexCss = "https://mdassets/vendor/katex/katex.min.css";
     private const string KatexJs = "https://mdassets/vendor/katex/katex.min.js";
     private const string KatexAutoRender = "https://mdassets/vendor/katex/auto-render.min.js";
+    private const string MermaidJs = "https://mdassets/vendor/mermaid/mermaid.min.js";
 
     public string Build(string bodyHtml, bool dark = false)
     {
         var scheme = dark ? "dark" : "light";
         var highlightCss = dark ? HighlightCssDark : HighlightCssLight;
-        return string.Format(CultureInfo.InvariantCulture, Template, scheme, highlightCss, HighlightJs, KatexCss, KatexJs, KatexAutoRender, bodyHtml);
+        return string.Format(CultureInfo.InvariantCulture, Template, scheme, highlightCss, HighlightJs, KatexCss, KatexJs, KatexAutoRender, MermaidJs, bodyHtml);
     }
 
     private const string Template = @"<!DOCTYPE html>
@@ -56,6 +57,8 @@ th,td {{ border:1px solid var(--border); padding:6px 13px; }}
 th {{ background:var(--code-bg); font-weight:600; }}
 hr {{ border:0; border-top:1px solid var(--border); margin:24px 0; }}
 ul.contains-task-list {{ list-style:none; padding-left:1.5em; }}
+.mermaid {{ text-align:center; margin:16px 0; }}
+.mermaid svg {{ max-width:100%; height:auto; }}
 .footnotes {{ font-size:.9em; color:var(--muted); border-top:1px solid var(--border); margin-top:32px; padding-top:16px; }}
 .footnote-ref sup {{ font-size:.75em; }}
 </style>
@@ -68,10 +71,11 @@ h1,h2,h3 {{ page-break-after:avoid; }}
 </style>
 </head>
 <body>
-{6}
+{7}
 <script src=""{2}""></script>
 <script src=""{4}""></script>
 <script src=""{5}""></script>
+<script src=""{6}""></script>
 <script>
   if (window.hljs) {{ hljs.highlightAll(); }}
   if (window.renderMathInElement) {{
@@ -84,6 +88,21 @@ h1,h2,h3 {{ page-break-after:avoid; }}
       ],
       throwOnError:false
     }});
+  }}
+  if (window.mermaid) {{
+    mermaid.initialize({{
+      startOnLoad:false,
+      theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default',
+      securityLevel:'strict'
+    }});
+    document.querySelectorAll('pre code.language-mermaid').forEach((code) => {{
+      const pre = code.parentElement;
+      const div = document.createElement('div');
+      div.className = 'mermaid';
+      div.textContent = code.textContent;
+      pre.replaceWith(div);
+    }});
+    if (document.querySelectorAll('.mermaid').length) mermaid.run();
   }}
 </script>
 </body>

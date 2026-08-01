@@ -14,6 +14,7 @@ public class PreviewTemplateTests
         Assert.Contains("https://mdassets/vendor/highlight/highlight.min.js", html);
         Assert.Contains("https://mdassets/vendor/katex/katex.min.css", html);
         Assert.Contains("https://mdassets/vendor/katex/auto-render.min.js", html);
+        Assert.Contains("https://mdassets/vendor/mermaid/mermaid.min.js", html);
         Assert.DoesNotContain("cdnjs.cloudflare.com", html);
         Assert.DoesNotContain("cdn.jsdelivr.net", html);
     }
