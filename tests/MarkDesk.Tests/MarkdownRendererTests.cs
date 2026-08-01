@@ -31,4 +31,24 @@ public class MarkdownRendererTests : VerifyBase
     [Fact]
     public Task Preserves_Math_Delimiters()
         => Verify(_renderer.RenderToHtml("Inline $a^2$ and block:\n\n$$E = mc^2$$\n"));
+
+    [Fact]
+    public void Emoji_RendersShortcode()
+        => Assert.Contains("😄", _renderer.RenderToHtml("Hello :smile:"));
+
+    [Fact]
+    public void Heading_GeneratesGitHubId()
+        => Assert.Contains("<h2 id=\"my-title\">", _renderer.RenderToHtml("## My Title"));
+
+    [Fact]
+    public void CustomContainer_RendersClassName()
+        => Assert.Contains("<div class=\"warning\">", _renderer.RenderToHtml(":::warning\ncareful\n:::"));
+
+    [Fact]
+    public void GitHubAlert_EmitsBlockquoteWithMarker()
+    {
+        var html = _renderer.RenderToHtml("> [!NOTE]\n> useful info");
+        Assert.Contains("<blockquote>", html);
+        Assert.Contains("[!NOTE]", html);
+    }
 }
