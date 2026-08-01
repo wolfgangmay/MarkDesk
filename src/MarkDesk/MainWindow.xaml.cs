@@ -125,6 +125,11 @@ public partial class MainWindow : Window
             Resources["AccentBrush"] = Brush(0x4A, 0xA3, 0xE3);
             Resources["AccentSoftBrush"] = Brush(0x1E, 0x3A, 0x5F);
             Resources["AccentTextBrush"] = Brush(0x6C, 0xB6, 0xF4);
+            Resources[SystemColors.MenuBrushKey] = Brush(0x2D, 0x2D, 0x30);
+            Resources[SystemColors.MenuTextBrushKey] = Brush(0xE6, 0xE6, 0xE6);
+            Resources[SystemColors.MenuBarBrushKey] = Brush(0x25, 0x25, 0x26);
+            Resources[SystemColors.HighlightBrushKey] = Brush(0x44, 0x4A, 0x52);
+            Resources[SystemColors.ControlTextBrushKey] = Brush(0xE6, 0xE6, 0xE6);
         }
         else
         {
@@ -139,6 +144,11 @@ public partial class MainWindow : Window
             Resources["AccentBrush"] = Brush(0x00, 0x67, 0xC0);
             Resources["AccentSoftBrush"] = Brush(0xE8, 0xF1, 0xFB);
             Resources["AccentTextBrush"] = Brush(0x00, 0x5F, 0xB8);
+            Resources[SystemColors.MenuBrushKey] = Brush(0xFF, 0xFF, 0xFF);
+            Resources[SystemColors.MenuTextBrushKey] = Brush(0x1F, 0x1F, 0x1F);
+            Resources[SystemColors.MenuBarBrushKey] = Brush(0xFF, 0xFF, 0xFF);
+            Resources[SystemColors.HighlightBrushKey] = Brush(0xCC, 0xE4, 0xF7);
+            Resources[SystemColors.ControlTextBrushKey] = Brush(0x1F, 0x1F, 0x1F);
         }
 
         Editor.ApplyTheme(dark);
@@ -337,14 +347,19 @@ public partial class MainWindow : Window
 
     private void Recent_SubmenuOpened(object sender, RoutedEventArgs e) => PopulateRecent();
 
-    private void Find_Click(object sender, RoutedEventArgs e)
+    private void Find_Executed(object sender, ExecutedRoutedEventArgs e)
     {
         if (ViewModel.ViewMode == ViewMode.Preview)
             ViewModel.ViewMode = ViewMode.Edit;
         Editor.ShowSearch();
     }
 
-    private void Replace_Click(object sender, RoutedEventArgs e) => Find_Click(sender, e);
+    private void Replace_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (ViewModel.ViewMode == ViewMode.Preview)
+            ViewModel.ViewMode = ViewMode.Edit;
+        Editor.ShowReplace();
+    }
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {

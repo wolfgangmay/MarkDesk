@@ -5,7 +5,6 @@ using System.Windows.Media;
 using System.Xml;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
-using ICSharpCode.AvalonEdit.Search;
 
 namespace MarkDesk.Controls;
 
@@ -30,24 +29,20 @@ public partial class MarkdownEditor : UserControl
 
     private bool _suppress;
     private ScrollViewer? _scrollViewer;
-    private SearchPanel? _searchPanel;
 
     public MarkdownEditor()
     {
         InitializeComponent();
         LoadMarkdownHighlighting();
-        _searchPanel = SearchPanel.Install(Editor);
+        Finder.Attach(Editor);
 
         Editor.TextChanged += (_, _) => SyncToProperty();
         Editor.TextArea.Caret.PositionChanged += (_, _) => CaretPositionChanged?.Invoke(this, EventArgs.Empty);
         Loaded += OnLoaded;
     }
 
-    public void ShowSearch()
-    {
-        Editor.Focus();
-        _searchPanel?.Open();
-    }
+    public void ShowSearch() { Editor.Focus(); Finder.Show(false); }
+    public void ShowReplace() { Editor.Focus(); Finder.Show(true); }
 
     public void ApplyTheme(bool dark)
     {
