@@ -21,6 +21,9 @@ public partial class App : Application
 
         var mainWindow = Services.GetRequiredService<MainWindow>();
         mainWindow.Show();
+
+        if (e.Args.Length > 0 && File.Exists(e.Args[0]))
+            mainWindow.ViewModel.OpenPath(e.Args[0]);
     }
 
     private static IServiceProvider ConfigureServices()
@@ -30,6 +33,9 @@ public partial class App : Application
         services.AddLogging();
 
         services.AddSingleton<ISettingsService, SettingsService>();
+        services.AddSingleton<IEncodingDetector, EncodingDetector>();
+        services.AddSingleton<IFileService, FileService>();
+        services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
 

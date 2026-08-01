@@ -5,11 +5,14 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MarkDesk"
         xmlns:vm="clr-namespace:MarkDesk.ViewModels"
+        xmlns:controls="clr-namespace:MarkDesk.Controls"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         Title="{Binding Title}" Height="650" Width="1100"
+        AllowDrop="True" Drop="Window_Drop" PreviewDragOver="Window_PreviewDragOver"
         WindowStartupLocation="CenterScreen">
     <Window.CommandBindings>
+        <CommandBinding Command="New" Executed="New_Executed" />
         <CommandBinding Command="Open" Executed="Open_Executed" />
         <CommandBinding Command="Save" Executed="Save_Executed" />
         <CommandBinding Command="SaveAs" Executed="SaveAs_Executed" />
@@ -19,10 +22,16 @@
     </Window.CommandBindings>
     <Window.InputBindings>
         <KeyBinding Key="F6" Command="{x:Static local:MainWindow.CycleViewModeCommand}" />
+        <KeyBinding Modifiers="Control" Key="N" Command="New" />
+        <KeyBinding Modifiers="Control" Key="O" Command="Open" />
+        <KeyBinding Modifiers="Control" Key="S" Command="Save" />
+        <KeyBinding Modifiers="Control+Shift" Key="S" Command="SaveAs" />
+        <KeyBinding Modifiers="Control" Key="P" Command="Print" />
     </Window.InputBindings>
     <DockPanel>
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_File">
+                <MenuItem Header="_New" InputGestureText="Ctrl+N" Command="New" />
                 <MenuItem Header="_Open…" InputGestureText="Ctrl+O" Command="Open" />
                 <MenuItem Header="_Save" InputGestureText="Ctrl+S" Command="Save" />
                 <MenuItem Header="Save _As…" InputGestureText="Ctrl+Shift+S" Command="SaveAs" />
@@ -54,7 +63,7 @@
                 <RadioButton Content="Split" GroupName="ViewMode" IsChecked="{Binding IsSplitActive, Mode=TwoWay}" />
                 <RadioButton Content="Preview" GroupName="ViewMode" IsChecked="{Binding IsPreviewActive, Mode=TwoWay}" />
                 <Separator />
-                <ToggleButton x:Name="WrapToggle" Content="Wrap" IsEnabled="False" />
+                <ToggleButton x:Name="WrapToggle" Content="Wrap" IsChecked="{Binding ElementName=Editor, Path=WordWrap, Mode=TwoWay}" />
                 <Button Content="Zoom −" IsEnabled="False" />
                 <Button Content="Zoom +" IsEnabled="False" />
             </ToolBar>
@@ -82,10 +91,7 @@
             </StatusBarItem>
         </StatusBar>
 
-        <Grid x:Name="ContentHost" Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}">
-            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
-                       Opacity="0.4" FontSize="16"
-                       Text="MarkDesk — scaffold ready (Phase 0)" />
-        </Grid>
+        <controls:MarkdownEditor x:Name="Editor"
+                                 DocumentText="{Binding DocumentText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
     </DockPanel>
 </Window>

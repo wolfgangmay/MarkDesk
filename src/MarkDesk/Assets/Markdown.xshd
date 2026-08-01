@@ -1,0 +1,74 @@
+<?xml version="1.0"?>
+<SyntaxDefinition name="Markdown" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+  <Color name="Heading" fontWeight="bold" foreground="#1a5fb4" />
+  <Color name="Bold" fontWeight="bold" />
+  <Color name="Italic" fontStyle="italic" />
+  <Color name="BoldItalic" fontWeight="bold" fontStyle="italic" />
+  <Color name="CodeSpan" fontFamily="Consolas" foreground="#c01c28" />
+  <Color name="CodeBlock" fontFamily="Consolas" foreground="#5e5c64" />
+  <Color name="Link" foreground="#1a5fb4" />
+  <Color name="Image" foreground="#813d9c" />
+  <Color name="Quote" foreground="#63452c" fontStyle="italic" />
+  <Color name="ListMarker" fontWeight="bold" foreground="#1a5fb4" />
+  <Color name="HR" foreground="#999999" />
+  <Color name="Marker" foreground="#9a9996" />
+
+  <RuleSet>
+    <!-- Headings: line starting with # -->
+    <Rule color="Heading">
+      ^\s{0,3}\#{1,6}\s.*$
+    </Rule>
+
+    <!-- Fenced code blocks ``` or ~~~ -->
+    <Span color="CodeBlock" multiline="true">
+      <Begin>^\s{0,3}(```|~~~).*$</Begin>
+      <End>^\s{0,3}(```|~~~)\s*$</End>
+    </Span>
+
+    <!-- Images ![alt](url) -->
+    <Rule color="Image">
+      !\[ [^\]]* \] \( [^\)]* \)
+    </Rule>
+
+    <!-- Links [text](url) -->
+    <Rule color="Link">
+      \[ [^\]]* \] \( [^\)]* \)
+    </Rule>
+
+    <!-- Horizontal rule -->
+    <Rule color="HR">
+      ^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$
+    </Rule>
+
+    <!-- Blockquote -->
+    <Span color="Quote" multiline="true">
+      <Begin>^\s{0,3}&gt;\s?.*$</Begin>
+      <End>(?=^\s{0,3}&gt;)|(?=^\S)</End>
+    </Span>
+
+    <!-- Bold+italic ***text*** or ___text___ -->
+    <Rule color="BoldItalic">
+      (\*|_){3}[^\s*_](.*?)(\*|_){3}
+    </Rule>
+
+    <!-- Bold **text** or __text__ -->
+    <Rule color="Bold">
+      (\*\*|__)[^\s](.*?)(\*\*|__)
+    </Rule>
+
+    <!-- Italic *text* or _text_ -->
+    <Rule color="Italic">
+      (\*|_)[^\s](.*?)(\*|_)
+    </Rule>
+
+    <!-- Inline code `code` -->
+    <Rule color="CodeSpan">
+      `[^`]+`
+    </Rule>
+
+    <!-- List markers: -, *, +, 1. -->
+    <Rule color="ListMarker">
+      ^\s{0,3}([-*+]|\d+\.)\s
+    </Rule>
+  </RuleSet>
+</SyntaxDefinition>
