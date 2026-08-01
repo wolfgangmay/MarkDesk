@@ -15,6 +15,7 @@ public partial class PreviewView : UserControl
     private string? _mappedFolder;
     private bool _initialized;
     private Task _initTask = Task.CompletedTask;
+    private readonly SemaphoreSlim _navigationLock = new(1, 1);
 
     public PreviewView()
     {
@@ -53,26 +54,57 @@ public partial class PreviewView : UserControl
         await EnsureInitializedAsync();
         EnsureFolderMapping(documentFolder);
 
-        var navDone = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        void Handler(object? s, CoreWebView2NavigationCompletedEventArgs e)
+        await _navigationLock.WaitAsync();
+        try
         {
-            WebView.CoreWebView2.NavigationCompleted -= Handler;
-            navDone.TrySetResult(e.IsSuccess);
+            var navDone = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ulong targetNavigationId = 0;
+            var waitingForStart = true;
+
+            void Starting(object? s, CoreWebView2NavigationStartingEventArgs e)
+            {
+                if (!waitingForStart)
+                    return;
+                waitingForStart = false;
+                targetNavigationId = e.NavigationId;
+            }
+
+            void Completed(object? s, CoreWebView2NavigationCompletedEventArgs e)
+            {
+                if (waitingForStart || e.NavigationId != targetNavigationId)
+                    return;
+                WebView.CoreWebView2.NavigationCompleted -= Completed;
+                WebView.CoreWebView2.NavigationStarting -= Starting;
+                navDone.TrySetResult(e.IsSuccess);
+            }
+
+            WebView.CoreWebView2.NavigationStarting += Starting;
+            WebView.CoreWebView2.NavigationCompleted += Completed;
+            WebView.CoreWebView2.NavigateToString(html);
+
+            var navigation = await Task.WhenAny(navDone.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+            if (navigation != navDone.Task)
+            {
+                WebView.CoreWebView2.NavigationCompleted -= Completed;
+                WebView.CoreWebView2.NavigationStarting -= Starting;
+                return false;
+            }
+
+            if (!await navDone.Task)
+                return false;
+
+            var settings = WebView.CoreWebView2.Environment.CreatePrintSettings();
+            settings.ShouldPrintBackgrounds = true;
+            settings.ShouldPrintHeaderAndFooter = false;
+            ApplyPageSize(settings, pageSize);
+
+            await WebView.CoreWebView2.PrintToPdfAsync(outputPath, settings);
+            return true;
         }
-
-        WebView.CoreWebView2.NavigationCompleted += Handler;
-        WebView.CoreWebView2.NavigateToString(html);
-
-        if (!await navDone.Task)
-            return false;
-
-        var settings = WebView.CoreWebView2.Environment.CreatePrintSettings();
-        settings.ShouldPrintBackgrounds = true;
-        settings.ShouldPrintHeaderAndFooter = false;
-        ApplyPageSize(settings, pageSize);
-
-        await WebView.CoreWebView2.PrintToPdfAsync(outputPath, settings);
-        return true;
+        finally
+        {
+            _navigationLock.Release();
+        }
     }
 
     private Task EnsureInitializedAsync()
@@ -124,8 +156,15 @@ public partial class PreviewView : UserControl
     private async Task ApplyAsync(string html, string? documentFolder)
     {
         EnsureFolderMapping(documentFolder);
-        WebView.CoreWebView2.NavigateToString(html);
-        await Task.CompletedTask;
+        await _navigationLock.WaitAsync();
+        try
+        {
+            WebView.CoreWebView2.NavigateToString(html);
+        }
+        finally
+        {
+            _navigationLock.Release();
+        }
     }
 
     private void EnsureFolderMapping(string? folder)

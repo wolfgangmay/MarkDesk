@@ -23,9 +23,24 @@ public sealed class EncodingDetector : IEncodingDetector
         if (IsValidUtf8(bytes))
             return new(new UTF8Encoding(false), "UTF-8", false);
 
-        // 3. GBK fallback
-        var gbk = GetGbkEncoding();
-        return new(gbk, "GBK", false);
+        // 3. UTF-16LE without BOM (NUL-heavy byte pattern, would otherwise mangle as GBK)
+        if (LooksLikeUtf16Le(bytes))
+            return new(Encoding.Unicode, "UTF-16LE", false);
+
+        // 4. GBK fallback (best effort for other non-UTF-8 text)
+        return new(GetGbkEncoding(), "GBK", false);
+    }
+
+    private static bool LooksLikeUtf16Le(byte[] bytes)
+    {
+        if (bytes.Length < 4 || bytes.Length % 2 != 0)
+            return false;
+
+        var nuls = 0;
+        for (var i = 1; i < bytes.Length; i += 2)
+            if (bytes[i] == 0)
+                nuls++;
+        return nuls >= bytes.Length / 2 * 7 / 10;
     }
 
     private static bool IsValidUtf8(byte[] bytes)

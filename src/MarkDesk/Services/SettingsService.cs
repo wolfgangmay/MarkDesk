@@ -35,7 +35,9 @@ public sealed class SettingsService : ISettingsService
     {
         Directory.CreateDirectory(_directory);
         var json = JsonSerializer.Serialize(Current, JsonOptions);
-        File.WriteAllText(_filePath, json);
+        var tmpPath = _filePath + ".tmp";
+        File.WriteAllText(tmpPath, json);
+        File.Move(tmpPath, _filePath, overwrite: true);
     }
 
     private AppSettings Load()

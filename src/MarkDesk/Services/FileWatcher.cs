@@ -4,8 +4,17 @@ namespace MarkDesk.Services;
 
 public sealed class FileWatcher : IDisposable
 {
+    private static readonly TimeSpan DebounceDelay = TimeSpan.FromMilliseconds(300);
+
     private FileSystemWatcher? _watcher;
+    private readonly object _gate = new();
+    private readonly Timer _debounceTimer;
     private DateTime _ignoreUntil = DateTime.MinValue;
+
+    public FileWatcher()
+    {
+        _debounceTimer = new Timer(_ => DebounceElapsed());
+    }
 
     public event EventHandler? ExternalChanged;
 
@@ -13,6 +22,7 @@ public sealed class FileWatcher : IDisposable
     {
         _watcher?.Dispose();
         _watcher = null;
+        StopDebounce();
 
         if (string.IsNullOrEmpty(path))
             return;
@@ -40,14 +50,46 @@ public sealed class FileWatcher : IDisposable
         }
     }
 
-    public void NotifySelfSave() => _ignoreUntil = DateTime.UtcNow.AddSeconds(2);
+    public void NotifySelfSave()
+    {
+        lock (_gate)
+        {
+            _ignoreUntil = DateTime.UtcNow.AddSeconds(2);
+            _debounceTimer.Change(Timeout.Infinite, Timeout.Infinite);
+        }
+    }
 
     private void RaiseIfExternal()
     {
-        if (DateTime.UtcNow < _ignoreUntil)
-            return;
-        ExternalChanged?.Invoke(this, EventArgs.Empty);
+        lock (_gate)
+        {
+            if (DateTime.UtcNow < _ignoreUntil)
+                return;
+            _debounceTimer.Change(DebounceDelay, Timeout.InfiniteTimeSpan);
+        }
     }
 
-    public void Dispose() => _watcher?.Dispose();
+    private void DebounceElapsed()
+    {
+        EventHandler? handler;
+        lock (_gate)
+        {
+            if (DateTime.UtcNow < _ignoreUntil)
+                return;
+            handler = ExternalChanged;
+        }
+        handler?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void StopDebounce()
+    {
+        lock (_gate)
+            _debounceTimer.Change(Timeout.Infinite, Timeout.Infinite);
+    }
+
+    public void Dispose()
+    {
+        _watcher?.Dispose();
+        _debounceTimer.Dispose();
+    }
 }

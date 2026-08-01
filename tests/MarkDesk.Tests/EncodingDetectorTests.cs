@@ -44,6 +44,17 @@ public class EncodingDetectorTests
     }
 
     [Fact]
+    public void Detects_Utf16Le_WithoutBom()
+    {
+        var bytes = Encoding.Unicode.GetBytes("Hello 😀 world");
+
+        var result = _detector.Detect(bytes);
+
+        Assert.Equal("UTF-16LE", result.DisplayName);
+        Assert.False(result.HasBom);
+    }
+
+    [Fact]
     public void Detects_Empty_AsUtf8()
     {
         var result = _detector.Detect(Array.Empty<byte>());

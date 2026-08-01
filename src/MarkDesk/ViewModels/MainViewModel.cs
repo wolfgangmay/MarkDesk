@@ -185,7 +185,7 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    [RelayCommand(CanExecute = nameof(CanSave))]
+    [RelayCommand]
     private void Save()
     {
         if (FilePath == null)
@@ -205,8 +205,6 @@ public partial class MainViewModel : ObservableObject
         DoSaveTo(path);
         FilePath = path;
     }
-
-    private bool CanSave() => IsDirty;
 
     partial void OnIsDirtyChanged(bool value) => UpdateTitle();
     partial void OnFilePathChanged(string? value) => UpdateTitle();
