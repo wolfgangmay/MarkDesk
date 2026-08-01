@@ -41,6 +41,14 @@ public sealed class ImagePasterService : IImagePasterService
         var fileName = ResolveUniqueName(_namePatternProvider(), extension, assetsFolder);
         var fullPath = Path.Combine(assetsFolder, fileName);
 
+        var resolvedFull = Path.GetFullPath(fullPath);
+        var resolvedAssets = Path.GetFullPath(assetsFolder);
+        var prefix = resolvedAssets.EndsWith(Path.DirectorySeparatorChar)
+            ? resolvedAssets
+            : resolvedAssets + Path.DirectorySeparatorChar;
+        if (!resolvedFull.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Resolved image path escapes the assets folder.");
+
         File.WriteAllBytes(fullPath, imageBytes);
 
         var relativePath = $"{_assetsFolderProvider()}/{fileName}";

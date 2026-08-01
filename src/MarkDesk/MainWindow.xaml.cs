@@ -63,6 +63,11 @@ public partial class MainWindow : Window
         Preview.ZoomChanged += (_, _) => UpdateZoomLabel();
         PreviewKeyDown += OnPreviewKeyDown;
         Editor.ScrollChanged += OnEditorScroll;
+        Editor.CaretPositionChanged += (_, _) =>
+        {
+            ViewModel.CaretLine = Editor.CaretLine;
+            ViewModel.CaretColumn = Editor.CaretColumn;
+        };
         _fileWatcher.ExternalChanged += (_, _) => Dispatcher.BeginInvoke(OnExternalChange);
         Closing += OnClosing;
     }

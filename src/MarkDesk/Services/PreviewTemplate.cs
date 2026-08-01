@@ -77,6 +77,19 @@ h1,h2,h3 {{ page-break-after:avoid; }}
 <script src=""{5}""></script>
 <script src=""{6}""></script>
 <script>
+  (function(){{
+    var bad = /^\s*(javascript|vbscript|data):/i;
+    function sanitize(root){{
+      root.querySelectorAll('a[href]').forEach(function(a){{
+        if (bad.test(a.getAttribute('href')||'')) a.removeAttribute('href');
+      }});
+    }}
+    sanitize(document.body);
+    document.addEventListener('click', function(e){{
+      var a = e.target.closest && e.target.closest('a');
+      if (a && bad.test(a.getAttribute('href')||'')) e.preventDefault();
+    }}, true);
+  }})();
   if (window.hljs) {{ hljs.highlightAll(); }}
   if (window.renderMathInElement) {{
     renderMathInElement(document.body, {{

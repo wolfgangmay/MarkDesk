@@ -152,12 +152,28 @@ public partial class FindReplacePanel : UserControl
         var term = FindBox.Text;
         var repl = ReplaceBox.Text;
         if (string.IsNullOrEmpty(term)) return;
+
+        var replaced = false;
         if (ed.SelectionLength == term.Length &&
             string.Equals(ed.SelectedText, term, Comparison))
         {
             ed.Document.Replace(ed.SelectionStart, ed.SelectionLength, repl);
+            replaced = true;
         }
+        else
+        {
+            var idx = SearchForward(ed.TextArea.Caret.Offset);
+            if (idx >= 0)
+            {
+                ed.Document.Replace(idx, term.Length, repl);
+                ed.TextArea.Caret.Offset = idx + repl.Length;
+                _lastFound = -1;
+                replaced = true;
+            }
+        }
+
         FindNext();
+        Status.Text = replaced ? "Replaced" : Status.Text;
     }
 
     private void ReplaceAll_Click(object sender, RoutedEventArgs e)

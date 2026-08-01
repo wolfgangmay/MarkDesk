@@ -208,8 +208,8 @@ public partial class MainViewModel : ObservableObject
         var path = _dialogService.PickSaveMarkdownFile(FilePath);
         if (path == null)
             return;
-        DoSaveTo(path);
-        FilePath = path;
+        if (DoSaveTo(path))
+            FilePath = path;
     }
 
     partial void OnIsDirtyChanged(bool value) => UpdateTitle();
@@ -253,7 +253,7 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    private void DoSaveTo(string path)
+    private bool DoSaveTo(string path)
     {
         try
         {
@@ -261,10 +261,12 @@ public partial class MainViewModel : ObservableObject
             IsDirty = false;
             UpdateTitle();
             AddRecent(path);
+            return true;
         }
         catch (Exception ex)
         {
             _dialogService.Warn($"Failed to save file:\n{ex.Message}", "Save error");
+            return false;
         }
     }
 
@@ -313,14 +315,16 @@ public partial class MainViewModel : ObservableObject
                 var path = _dialogService.PickSaveMarkdownFile(FilePath);
                 if (path == null)
                     return UnsavedChoice.Cancel;
-                DoSaveTo(path);
+                if (!DoSaveTo(path))
+                    return UnsavedChoice.Cancel;
                 FilePath = path;
             }
             else
             {
-                DoSaveTo(FilePath);
+                if (!DoSaveTo(FilePath))
+                    return UnsavedChoice.Cancel;
             }
-            return IsDirty ? UnsavedChoice.Cancel : UnsavedChoice.Save;
+            return UnsavedChoice.Save;
         }
         return choice;
     }
@@ -332,12 +336,12 @@ public partial class MainViewModel : ObservableObject
             var path = _dialogService.PickSaveMarkdownFile(FilePath);
             if (path == null)
                 return false;
-            DoSaveTo(path);
+            if (!DoSaveTo(path))
+                return false;
             FilePath = path;
-            return !IsDirty;
+            return true;
         }
-        DoSaveTo(FilePath);
-        return !IsDirty;
+        return DoSaveTo(FilePath);
     }
 
     private void UpdateTitle()

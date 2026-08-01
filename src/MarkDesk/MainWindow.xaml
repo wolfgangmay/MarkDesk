@@ -192,9 +192,9 @@
                         <MenuItem Header="_Replace…" Command="{x:Static ApplicationCommands.Replace}" />
                     </MenuItem>
                     <MenuItem Header="_View">
-                        <MenuItem Header="_Edit" IsCheckable="True" IsChecked="{Binding IsEditActive, Mode=OneWay}" />
-                        <MenuItem Header="_Split" IsCheckable="True" IsChecked="{Binding IsSplitActive, Mode=OneWay}" />
-                        <MenuItem Header="_Preview" IsCheckable="True" IsChecked="{Binding IsPreviewActive, Mode=OneWay}" />
+                        <MenuItem Header="_Edit" IsCheckable="True" IsChecked="{Binding IsEditActive, Mode=TwoWay}" />
+                        <MenuItem Header="_Split" IsCheckable="True" IsChecked="{Binding IsSplitActive, Mode=TwoWay}" />
+                        <MenuItem Header="_Preview" IsCheckable="True" IsChecked="{Binding IsPreviewActive, Mode=TwoWay}" />
                     </MenuItem>
                     <MenuItem Header="_Tools">
                         <MenuItem Header="_Theme">

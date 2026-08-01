@@ -179,7 +179,7 @@ public partial class PreviewView : UserControl
         }
     }
 
-    private Task WaitNavigationAsync()
+    private async Task WaitNavigationAsync()
     {
         var navDone = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         ulong targetNavigationId = 0;
@@ -204,7 +204,15 @@ public partial class PreviewView : UserControl
 
         WebView.CoreWebView2.NavigationStarting += Starting;
         WebView.CoreWebView2.NavigationCompleted += Completed;
-        return navDone.Task;
+
+        var winner = await Task.WhenAny(navDone.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+        if (winner != navDone.Task)
+        {
+            WebView.CoreWebView2.NavigationCompleted -= Completed;
+            WebView.CoreWebView2.NavigationStarting -= Starting;
+            return;
+        }
+        await navDone.Task;
     }
 
     private void WebView_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
