@@ -36,6 +36,16 @@
         <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#CCE4F7" />
         <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#1F1F1F" />
 
+        <Style TargetType="MenuItem">
+            <Setter Property="Foreground" Value="{DynamicResource ContentBrush}" />
+            <Setter Property="Padding" Value="14,4" />
+        </Style>
+        <Style TargetType="Separator">
+            <Setter Property="Height" Value="1" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="Background" Value="{DynamicResource DividerBrush}" />
+        </Style>
+
         <Style x:Key="IconButton" TargetType="Button">
             <Setter Property="Width" Value="34" />
             <Setter Property="Height" Value="34" />
