@@ -58,6 +58,7 @@ public partial class MainWindow : Window
             _fileWatcher.Watch(ViewModel.FilePath);
             PopulateRecent();
             UpdateZoomLabel();
+            RegisterSubmenuHandlers();
         };
         Preview.ZoomChanged += (_, _) => UpdateZoomLabel();
         PreviewKeyDown += OnPreviewKeyDown;
@@ -161,6 +162,20 @@ public partial class MainWindow : Window
             RenderNow();
     }
 
+    private void RegisterSubmenuHandlers()
+    {
+        foreach (var top in MainMenu.Items.OfType<MenuItem>())
+            RegisterSubmenuHandler(top);
+    }
+
+    private void RegisterSubmenuHandler(MenuItem mi)
+    {
+        mi.SubmenuOpened -= Menu_SubmenuOpened;
+        mi.SubmenuOpened += Menu_SubmenuOpened;
+        foreach (var child in mi.Items.OfType<MenuItem>())
+            RegisterSubmenuHandler(child);
+    }
+
     private void Menu_SubmenuOpened(object sender, RoutedEventArgs e)
     {
         if (sender is MenuItem mi)
@@ -173,6 +188,10 @@ public partial class MainWindow : Window
         {
             border.Background = (Brush)Resources["MenuPopupBrush"];
             border.BorderBrush = (Brush)Resources["MenuPopupBorderBrush"];
+        }
+        else
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => ApplySubmenuTheme(mi)));
         }
     }
 
