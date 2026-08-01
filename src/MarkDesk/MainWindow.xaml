@@ -36,10 +36,6 @@
         <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#CCE4F7" />
         <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#1F1F1F" />
 
-        <Style TargetType="MenuItem">
-            <Setter Property="Foreground" Value="{DynamicResource ContentBrush}" />
-            <Setter Property="Padding" Value="14,4" />
-        </Style>
         <Style TargetType="Separator">
             <Setter Property="Height" Value="1" />
             <Setter Property="Margin" Value="0,2" />
@@ -165,6 +161,20 @@
             <DockPanel Height="46">
                 <Menu DockPanel.Dock="Left" Background="Transparent" VerticalAlignment="Center"
                       Foreground="{DynamicResource ContentBrush}">
+                    <Menu.ItemContainerStyle>
+                        <Style TargetType="MenuItem">
+                            <Setter Property="Foreground" Value="{DynamicResource ContentBrush}" />
+                            <Setter Property="Padding" Value="14,4" />
+                            <Setter Property="ItemContainerStyle">
+                                <Setter.Value>
+                                    <Style TargetType="MenuItem">
+                                        <Setter Property="Foreground" Value="{DynamicResource ContentBrush}" />
+                                        <Setter Property="Padding" Value="14,4" />
+                                    </Style>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Menu.ItemContainerStyle>
                     <MenuItem Header="_File">
                         <MenuItem Header="_New" InputGestureText="Ctrl+N" Command="New" />
                         <MenuItem Header="_Open…" InputGestureText="Ctrl+O" Command="Open" />
