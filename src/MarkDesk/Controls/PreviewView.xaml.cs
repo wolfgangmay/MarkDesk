@@ -14,7 +14,7 @@ public partial class PreviewView : UserControl
     private string? _pendingFolder;
     private string? _mappedFolder;
     private bool _initialized;
-    private bool _initializing;
+    private Task _initTask = Task.CompletedTask;
 
     public PreviewView()
     {
@@ -35,9 +35,7 @@ public partial class PreviewView : UserControl
 
         _pendingHtml = html;
         _pendingFolder = documentFolder;
-
-        if (!_initializing)
-            await EnsureInitializedAsync();
+        await EnsureInitializedAsync();
     }
 
     public async Task SetScrollProportionAsync(double proportion)
@@ -77,12 +75,20 @@ public partial class PreviewView : UserControl
         return true;
     }
 
-    private async Task EnsureInitializedAsync()
+    private Task EnsureInitializedAsync()
     {
         if (_initialized)
-            return;
+            return Task.CompletedTask;
 
-        _initializing = true;
+        if (!_initTask.IsCompleted)
+            return _initTask;
+
+        _initTask = InitializeCoreAsync();
+        return _initTask;
+    }
+
+    private async Task InitializeCoreAsync()
+    {
         try
         {
             var userDataFolder = Path.Combine(
@@ -112,10 +118,6 @@ public partial class PreviewView : UserControl
         {
             LoadingHint.Text = "WebView2 unavailable: " + ex.Message;
             throw;
-        }
-        finally
-        {
-            _initializing = false;
         }
     }
 

@@ -29,6 +29,7 @@ public partial class MarkdownEditor : UserControl
             new FrameworkPropertyMetadata(false, OnWordWrapChanged));
 
     private bool _suppress;
+    private ScrollViewer? _scrollViewer;
 
     public MarkdownEditor()
     {
@@ -43,21 +44,21 @@ public partial class MarkdownEditor : UserControl
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        var sv = FindVisualChild<ScrollViewer>(Editor);
-        if (sv != null)
-            sv.ScrollChanged += (_, _) => ScrollChanged?.Invoke(this, EventArgs.Empty);
+        _scrollViewer = FindVisualChild<ScrollViewer>(Editor);
+        if (_scrollViewer != null)
+            _scrollViewer.ScrollChanged += (_, _) => ScrollChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public double ScrollProportion
     {
         get
         {
-            var sv = FindVisualChild<ScrollViewer>(Editor);
+            var sv = _scrollViewer;
             return sv is null || sv.ScrollableHeight <= 0 ? 0 : sv.VerticalOffset / sv.ScrollableHeight;
         }
         set
         {
-            var sv = FindVisualChild<ScrollViewer>(Editor);
+            var sv = _scrollViewer;
             if (sv is not null && sv.ScrollableHeight > 0)
                 sv.ScrollToVerticalOffset(value * sv.ScrollableHeight);
         }

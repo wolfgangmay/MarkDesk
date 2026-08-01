@@ -22,8 +22,8 @@ public sealed class PreviewTemplate
 <meta charset=""utf-8"">
 <meta name=""viewport"" content=""width=device-width, initial-scale=1"">
 <base href=""https://mdlocal/"">
-<link rel=""stylesheet"" href=""{2}"">
-<link rel=""stylesheet"" href=""{4}"">
+<link rel=""stylesheet"" href=""{1}"">
+<link rel=""stylesheet"" href=""{3}"">
 <style>
 :root {{
   --fg:#24292f; --bg:#ffffff; --border:#d0d7de; --muted:#57606a;
@@ -67,8 +67,8 @@ h1,h2,h3 {{ page-break-after:avoid; }}
 </head>
 <body>
 {6}
-<script src=""{1}""></script>
-<script src=""{3}""></script>
+<script src=""{2}""></script>
+<script src=""{4}""></script>
 <script src=""{5}""></script>
 <script>
   if (window.hljs) {{ hljs.highlightAll(); }}
