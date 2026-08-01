@@ -120,7 +120,7 @@ h1,h2,h3 {{ page-break-after:avoid; }}
       bq.classList.add('markdown-alert','markdown-alert-'+type);
       var h = document.createElement('p');
       h.className = 'markdown-alert-title';
-      h.textContent = m[1].charAt(0)+m[1].slice(1).toLowerCase();
+      h.textContent = m[1].charAt(0).toUpperCase()+m[1].slice(1).toLowerCase();
       bq.insertBefore(h, p);
     }});
   }})();
