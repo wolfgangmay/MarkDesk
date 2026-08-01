@@ -11,6 +11,107 @@
         Title="{Binding Title}" Height="650" Width="1100"
         AllowDrop="True" Drop="Window_Drop" PreviewDragOver="Window_PreviewDragOver"
         WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <SolidColorBrush x:Key="ContentBrush" Color="#1F1F1F" />
+        <SolidColorBrush x:Key="MutedBrush" Color="#6E6E6E" />
+        <SolidColorBrush x:Key="DividerBrush" Color="#E5E5E5" />
+        <SolidColorBrush x:Key="HoverBrush" Color="#F0F0F0" />
+        <SolidColorBrush x:Key="PressedBrush" Color="#E0E0E0" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#0067C0" />
+        <SolidColorBrush x:Key="AccentSoftBrush" Color="#E8F1FB" />
+        <SolidColorBrush x:Key="AccentTextBrush" Color="#005FB8" />
+
+        <Style x:Key="IconButton" TargetType="Button">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Foreground" Value="{StaticResource ContentBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="5">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource PressedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SegmentItem" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource ContentBrush}" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="5"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SegmentToggle" TargetType="ToggleButton">
+            <Setter Property="Foreground" Value="{StaticResource ContentBrush}" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="5"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource AccentSoftBrush}" />
+                                <Setter Property="Foreground" Value="{StaticResource AccentTextBrush}" />
+                                <Setter Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
     <Window.CommandBindings>
         <CommandBinding Command="New" Executed="New_Executed" />
         <CommandBinding Command="Open" Executed="Open_Executed" />
@@ -28,51 +129,87 @@
         <KeyBinding Modifiers="Control+Shift" Key="S" Command="SaveAs" />
         <KeyBinding Modifiers="Control" Key="P" Command="Print" />
     </Window.InputBindings>
+
     <DockPanel>
-        <Menu DockPanel.Dock="Top">
-            <MenuItem Header="_File">
-                <MenuItem Header="_New" InputGestureText="Ctrl+N" Command="New" />
-                <MenuItem Header="_Open…" InputGestureText="Ctrl+O" Command="Open" />
-                <MenuItem Header="_Save" InputGestureText="Ctrl+S" Command="Save" />
-                <MenuItem Header="Save _As…" InputGestureText="Ctrl+Shift+S" Command="SaveAs" />
-                <Separator />
-                <MenuItem Header="Recent" x:Name="RecentMenu" SubmenuOpened="Recent_SubmenuOpened" />
-                <Separator />
-                <MenuItem Header="E_xit" Command="Close" />
-            </MenuItem>
-            <MenuItem Header="_Edit">
-                <MenuItem Header="_Find…" InputGestureText="Ctrl+F" IsEnabled="False" />
-                <MenuItem Header="_Replace…" InputGestureText="Ctrl+H" IsEnabled="False" />
-            </MenuItem>
-            <MenuItem Header="_View">
-                <MenuItem Header="_Edit" IsCheckable="True" IsChecked="{Binding IsEditActive, Mode=OneWay}" />
-                <MenuItem Header="_Split" IsCheckable="True" IsChecked="{Binding IsSplitActive, Mode=OneWay}" />
-                <MenuItem Header="_Preview" IsCheckable="True" IsChecked="{Binding IsPreviewActive, Mode=OneWay}" />
-            </MenuItem>
-            <MenuItem Header="_Export">
-                <MenuItem Header="Export as PDF…" InputGestureText="Ctrl+P" Command="Print" />
-            </MenuItem>
-            <MenuItem Header="_Tools">
-                <MenuItem Header="Settings…" Click="Settings_Click" />
-            </MenuItem>
-            <MenuItem Header="_Help">
-                <MenuItem Header="About MarkDesk" IsEnabled="False" />
-            </MenuItem>
-        </Menu>
+        <Border DockPanel.Dock="Top" Background="White"
+                BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,0,0,1">
+            <DockPanel Height="46">
+                <Menu DockPanel.Dock="Left" Background="Transparent" VerticalAlignment="Center"
+                      Foreground="{StaticResource ContentBrush}">
+                    <MenuItem Header="_File">
+                        <MenuItem Header="_New" InputGestureText="Ctrl+N" Command="New" />
+                        <MenuItem Header="_Open…" InputGestureText="Ctrl+O" Command="Open" />
+                        <MenuItem Header="_Save" InputGestureText="Ctrl+S" Command="Save" />
+                        <MenuItem Header="Save _As…" InputGestureText="Ctrl+Shift+S" Command="SaveAs" />
+                        <Separator />
+                        <MenuItem Header="Recent" x:Name="RecentMenu" SubmenuOpened="Recent_SubmenuOpened" />
+                        <Separator />
+                        <MenuItem Header="Export as _PDF…" InputGestureText="Ctrl+P" Command="Print" />
+                        <Separator />
+                        <MenuItem Header="E_xit" Command="Close" />
+                    </MenuItem>
+                    <MenuItem Header="_Edit">
+                        <MenuItem Header="_Find…" InputGestureText="Ctrl+F" IsEnabled="False" />
+                        <MenuItem Header="_Replace…" InputGestureText="Ctrl+H" IsEnabled="False" />
+                    </MenuItem>
+                    <MenuItem Header="_View">
+                        <MenuItem Header="_Edit" IsCheckable="True" IsChecked="{Binding IsEditActive, Mode=OneWay}" />
+                        <MenuItem Header="_Split" IsCheckable="True" IsChecked="{Binding IsSplitActive, Mode=OneWay}" />
+                        <MenuItem Header="_Preview" IsCheckable="True" IsChecked="{Binding IsPreviewActive, Mode=OneWay}" />
+                    </MenuItem>
+                    <MenuItem Header="_Tools">
+                        <MenuItem Header="_Settings…" Click="Settings_Click" />
+                    </MenuItem>
+                    <MenuItem Header="_Help">
+                        <MenuItem Header="About MarkDesk" IsEnabled="False" />
+                    </MenuItem>
+                </Menu>
 
-        <ToolBarTray DockPanel.Dock="Top">
-            <ToolBar>
-                <RadioButton Content="Edit" GroupName="ViewMode" IsChecked="{Binding IsEditActive, Mode=TwoWay}" />
-                <RadioButton Content="Split" GroupName="ViewMode" IsChecked="{Binding IsSplitActive, Mode=TwoWay}" />
-                <RadioButton Content="Preview" GroupName="ViewMode" IsChecked="{Binding IsPreviewActive, Mode=TwoWay}" />
-                <Separator />
-                <ToggleButton Content="Wrap" IsChecked="{Binding WordWrap, ElementName=Editor, Mode=TwoWay}" />
-                <Button Content="Zoom −" IsEnabled="False" />
-                <Button Content="Zoom +" IsEnabled="False" />
-            </ToolBar>
-        </ToolBarTray>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center"
+                            HorizontalAlignment="Right" Margin="8,0">
+                    <Button Style="{StaticResource IconButton}" Content="&#xE710;" Command="New"
+                            ToolTip="New (Ctrl+N)" />
+                    <Button Style="{StaticResource IconButton}" Content="&#xE8E5;" Command="Open"
+                            ToolTip="Open… (Ctrl+O)" />
+                    <Button Style="{StaticResource IconButton}" Content="&#xE74E;" Command="Save"
+                            ToolTip="Save (Ctrl+S)" />
+                    <Button Style="{StaticResource IconButton}" Content="&#xE792;" Command="SaveAs"
+                            ToolTip="Save As… (Ctrl+Shift+S)" />
+                    <Button Style="{StaticResource IconButton}" Content="&#xE71B;" Command="Print"
+                            ToolTip="Export as PDF… (Ctrl+P)" />
 
-        <StatusBar DockPanel.Dock="Bottom">
+                    <Rectangle Width="1" Height="22" Fill="{StaticResource DividerBrush}" Margin="10,0" />
+
+                    <Border Background="#F3F3F3" CornerRadius="7" Padding="3,1">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton Style="{StaticResource SegmentItem}" Content="Edit" GroupName="ViewMode"
+                                         IsChecked="{Binding IsEditActive, Mode=TwoWay}"
+                                         ToolTip="Editor only" />
+                            <RadioButton Style="{StaticResource SegmentItem}" Content="Split" GroupName="ViewMode"
+                                         IsChecked="{Binding IsSplitActive, Mode=TwoWay}"
+                                         ToolTip="Editor and preview side by side" />
+                            <RadioButton Style="{StaticResource SegmentItem}" Content="Preview" GroupName="ViewMode"
+                                         IsChecked="{Binding IsPreviewActive, Mode=TwoWay}"
+                                         ToolTip="Preview only" />
+                        </StackPanel>
+                    </Border>
+
+                    <Rectangle Width="1" Height="22" Fill="{StaticResource DividerBrush}" Margin="10,0" />
+
+                    <ToggleButton Style="{StaticResource SegmentToggle}" Content="Wrap"
+                                  IsChecked="{Binding WordWrap, ElementName=Editor, Mode=TwoWay}"
+                                  ToolTip="Toggle line wrapping" />
+
+                    <Rectangle Width="1" Height="22" Fill="{StaticResource DividerBrush}" Margin="10,0" />
+
+                    <Button Style="{StaticResource IconButton}" Content="&#xE713;" Click="Settings_Click"
+                            ToolTip="Settings" />
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <StatusBar DockPanel.Dock="Bottom" Background="White"
+                   BorderBrush="{StaticResource DividerBrush}" BorderThickness="0,1,0,0">
             <StatusBarItem>
                 <TextBlock>
                     <Run Text="Ln " /><Run Text="{Binding CaretLine}" />
@@ -90,7 +227,7 @@
                 </TextBlock>
             </StatusBarItem>
             <StatusBarItem DockPanel.Dock="Right" HorizontalAlignment="Right">
-                <TextBlock x:Name="PreviewStatus" Text="Preview: idle" />
+                <TextBlock x:Name="PreviewStatus" Text="Preview: idle" Foreground="{StaticResource MutedBrush}" />
             </StatusBarItem>
         </StatusBar>
 
@@ -101,8 +238,10 @@
             </Grid.RowDefinitions>
 
             <StackPanel x:Name="TabStrip" Orientation="Horizontal" Visibility="Collapsed" Margin="6,3">
-                <ToggleButton x:Name="TabEdit" Content="Edit" Margin="0,0,4,0" Click="TabEdit_Click" />
-                <ToggleButton x:Name="TabPreview" Content="Preview" Click="TabPreview_Click" />
+                <ToggleButton x:Name="TabEdit" Style="{StaticResource SegmentToggle}" Content="Edit"
+                              Margin="0,0,4,0" Click="TabEdit_Click" />
+                <ToggleButton x:Name="TabPreview" Style="{StaticResource SegmentToggle}" Content="Preview"
+                              Click="TabPreview_Click" />
             </StackPanel>
 
             <Grid x:Name="SplitGrid" Grid.Row="1">

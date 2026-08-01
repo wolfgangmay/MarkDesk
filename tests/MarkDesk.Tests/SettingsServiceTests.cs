@@ -15,7 +15,7 @@ public class SettingsServiceTests
         var settings = new AppSettings();
 
         Assert.Equal(960, settings.LayoutThresholdPx);
-        Assert.Equal(ViewMode.Split, settings.DefaultViewMode);
+        Assert.Equal(ViewMode.Preview, settings.DefaultViewMode);
         Assert.Equal("assets", settings.AssetsFolderName);
         Assert.Equal("img-{yyyyMMdd-HHmmss}-{n}", settings.ImageNamePattern);
         Assert.True(settings.ScrollSync);
@@ -33,7 +33,7 @@ public class SettingsServiceTests
             var service = new SettingsService(dir);
 
             Assert.Equal(960, service.Current.LayoutThresholdPx);
-            Assert.Equal(ViewMode.Split, service.Current.DefaultViewMode);
+            Assert.Equal(ViewMode.Preview, service.Current.DefaultViewMode);
         }
         finally
         {
