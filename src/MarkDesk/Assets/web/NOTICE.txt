@@ -1,0 +1,9 @@
+This folder contains third-party web assets bundled with MarkDesk.
+
+highlight.js (vendor/highlight/) - https://highlightjs.org - BSD-3-Clause
+  Downloaded from cdnjs (https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/)
+
+KaTeX (vendor/katex/) - https://katex.org - MIT License
+  Downloaded from jsDelivr (https://cdn.jsdelivr.net/npm/katex@0.16.11/)
+
+Both are distributed unmodified under their original licenses.

@@ -9,13 +9,18 @@ namespace MarkDesk.Controls;
 public partial class PreviewView : UserControl
 {
     private const string VirtualHost = "mdlocal";
+    private const string AssetsHost = "mdassets";
 
     private string? _pendingHtml;
     private string? _pendingFolder;
     private string? _mappedFolder;
+    private bool _assetsMapped;
     private bool _initialized;
     private Task _initTask = Task.CompletedTask;
     private readonly SemaphoreSlim _navigationLock = new(1, 1);
+
+    private static string AssetsFolder =>
+        Path.Combine(AppContext.BaseDirectory, "Assets", "web");
 
     public PreviewView()
     {
@@ -180,6 +185,27 @@ public partial class PreviewView : UserControl
         WebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
             VirtualHost, folder, CoreWebView2HostResourceAccessKind.Allow);
         _mappedFolder = folder;
+
+        EnsureAssetsMapping();
+    }
+
+    private void EnsureAssetsMapping()
+    {
+        if (_assetsMapped)
+            return;
+        try
+        {
+            if (Directory.Exists(AssetsFolder))
+            {
+                WebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    AssetsHost, AssetsFolder, CoreWebView2HostResourceAccessKind.Allow);
+                _assetsMapped = true;
+            }
+        }
+        catch
+        {
+            // Assets optional; degrade gracefully (no highlighting / math).
+        }
     }
 
     private static void ApplyPageSize(CoreWebView2PrintSettings settings, PdfPageSize pageSize)

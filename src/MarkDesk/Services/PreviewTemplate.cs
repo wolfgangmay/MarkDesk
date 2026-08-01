@@ -4,16 +4,18 @@ namespace MarkDesk.Services;
 
 public sealed class PreviewTemplate
 {
-    private const string HighlightCss = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css";
-    private const string HighlightJs = "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js";
-    private const string KatexCss = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css";
-    private const string KatexJs = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js";
-    private const string KatexAutoRender = "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js";
+    private const string HighlightCssLight = "https://mdassets/vendor/highlight/github.min.css";
+    private const string HighlightCssDark = "https://mdassets/vendor/highlight/github-dark.min.css";
+    private const string HighlightJs = "https://mdassets/vendor/highlight/highlight.min.js";
+    private const string KatexCss = "https://mdassets/vendor/katex/katex.min.css";
+    private const string KatexJs = "https://mdassets/vendor/katex/katex.min.js";
+    private const string KatexAutoRender = "https://mdassets/vendor/katex/auto-render.min.js";
 
     public string Build(string bodyHtml, bool dark = false)
     {
         var scheme = dark ? "dark" : "light";
-        return string.Format(CultureInfo.InvariantCulture, Template, scheme, HighlightCss, HighlightJs, KatexCss, KatexJs, KatexAutoRender, bodyHtml);
+        var highlightCss = dark ? HighlightCssDark : HighlightCssLight;
+        return string.Format(CultureInfo.InvariantCulture, Template, scheme, highlightCss, HighlightJs, KatexCss, KatexJs, KatexAutoRender, bodyHtml);
     }
 
     private const string Template = @"<!DOCTYPE html>
