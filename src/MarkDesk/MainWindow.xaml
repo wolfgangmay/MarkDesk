@@ -52,6 +52,9 @@
             <MenuItem Header="_Export">
                 <MenuItem Header="Export as PDF…" InputGestureText="Ctrl+P" Command="Print" />
             </MenuItem>
+            <MenuItem Header="_Tools">
+                <MenuItem Header="Settings…" Click="Settings_Click" />
+            </MenuItem>
             <MenuItem Header="_Help">
                 <MenuItem Header="About MarkDesk" IsEnabled="False" />
             </MenuItem>

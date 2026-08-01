@@ -83,6 +83,7 @@ public partial class MainViewModel : ObservableObject
 
     public int LayoutThresholdPx => _settingsService.Current.LayoutThresholdPx;
     public int RenderDebounceMs => _settingsService.Current.RenderDebounceMs;
+    public PdfPageSize PdfPageSize => _settingsService.Current.PdfPageSize;
 
     public string? DocumentFolder =>
         string.IsNullOrEmpty(FilePath) ? null : Path.GetDirectoryName(FilePath);

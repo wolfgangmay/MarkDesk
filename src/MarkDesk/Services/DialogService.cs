@@ -30,6 +30,21 @@ public sealed class DialogService : IDialogService
         return dlg.ShowDialog() == true ? dlg.FileName : null;
     }
 
+    public string? PickSavePdfFile(string? currentPath)
+    {
+        var dlg = new SaveFileDialog
+        {
+            Filter = "PDF (*.pdf)|*.pdf",
+            Title = "Export as PDF",
+            FileName = string.IsNullOrEmpty(currentPath)
+                ? "Untitled.pdf"
+                : System.IO.Path.GetFileNameWithoutExtension(currentPath) + ".pdf",
+            DefaultExt = ".pdf",
+            AddExtension = true
+        };
+        return dlg.ShowDialog() == true ? dlg.FileName : null;
+    }
+
     public FileReloadChoice AskReloadExternalChange()
     {
         var result = MessageBox.Show(

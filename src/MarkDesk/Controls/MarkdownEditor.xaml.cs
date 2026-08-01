@@ -59,6 +59,14 @@ public partial class MarkdownEditor : UserControl
 
     public void FocusEditor() => Editor.Focus();
 
+    public void InsertAtCaret(string text)
+    {
+        var offset = Editor.TextArea.Caret.Offset;
+        Editor.Document.Insert(offset, text);
+        Editor.TextArea.Caret.Offset = offset + text.Length;
+        Editor.Focus();
+    }
+
     public void ReplaceAll(string text)
     {
         _suppress = true;

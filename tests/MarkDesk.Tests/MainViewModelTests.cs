@@ -28,6 +28,7 @@ internal sealed class FakeDialogService : IDialogService
 
     public string? PickOpenMarkdownFile() => OpenPath;
     public string? PickSaveMarkdownFile(string? currentPath) => SavePath;
+    public string? PickSavePdfFile(string? currentPath) => null;
     public FileReloadChoice AskReloadExternalChange() => FileReloadChoice.KeepMine;
     public bool AskConfirm(string message, string title) => Confirm;
     public UnsavedChoice AskUnsavedChanges() => Unsaved;

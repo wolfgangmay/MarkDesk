@@ -4,7 +4,6 @@ using System.Windows;
 using MarkDesk.Services;
 using MarkDesk.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
-
 namespace MarkDesk;
 
 public partial class App : Application
@@ -38,6 +37,8 @@ public partial class App : Application
         services.AddSingleton<IDialogService, DialogService>();
         services.AddSingleton<IMarkdownRenderer, MarkdownRenderer>();
         services.AddSingleton<PreviewTemplate>();
+        services.AddSingleton<IImagePasterService, ImagePasterService>();
+        services.AddTransient<SettingsViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
 

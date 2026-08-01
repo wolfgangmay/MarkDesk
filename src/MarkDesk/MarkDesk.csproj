@@ -27,4 +27,8 @@
     <Resource Include="Assets\Markdown.xshd" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="MarkDesk.Tests" />
+  </ItemGroup>
+
 </Project>
