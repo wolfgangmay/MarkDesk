@@ -61,6 +61,24 @@ ul.contains-task-list {{ list-style:none; padding-left:1.5em; }}
 .mermaid svg {{ max-width:100%; height:auto; }}
 .footnotes {{ font-size:.9em; color:var(--muted); border-top:1px solid var(--border); margin-top:32px; padding-top:16px; }}
 .footnote-ref sup {{ font-size:.75em; }}
+/* Custom containers (:::name ... :::) */
+div.warning,div.danger {{ border-left:4px solid #cf222e; background:#cf222e14; }}
+div.note,div.info {{ border-left:4px solid #0969da; background:#0969da14; }}
+div.tip {{ border-left:4px solid #1a7f37; background:#1a7f3714; }}
+div.success {{ border-left:4px solid #1f883d; background:#1f883d14; }}
+div[class] {{ padding:8px 16px; margin:16px 0; border-radius:4px; }}
+div[class] > :first-child {{ margin-top:0; }}
+div[class] > :last-child {{ margin-bottom:0; }}
+/* GitHub-style alerts (> [!NOTE] etc.) */
+.markdown-alert {{ padding:8px 16px; margin:16px 0; border-left:4px solid var(--border); border-radius:4px; }}
+.markdown-alert > :first-child {{ margin-top:0; }}
+.markdown-alert > :last-child {{ margin-bottom:0; }}
+.markdown-alert-title {{ font-weight:600; margin:0 0 6px; }}
+.markdown-alert-note {{ border-left-color:#0969da; background:#0969da14; }} .markdown-alert-note .markdown-alert-title {{ color:#0969da; }}
+.markdown-alert-tip {{ border-left-color:#1a7f37; background:#1a7f3714; }} .markdown-alert-tip .markdown-alert-title {{ color:#1a7f37; }}
+.markdown-alert-important {{ border-left-color:#8250df; background:#8250df14; }} .markdown-alert-important .markdown-alert-title {{ color:#8250df; }}
+.markdown-alert-warning {{ border-left-color:#9a6700; background:#9a670014; }} .markdown-alert-warning .markdown-alert-title {{ color:#9a6700; }}
+.markdown-alert-caution {{ border-left-color:#cf222e; background:#cf222e14; }} .markdown-alert-caution .markdown-alert-title {{ color:#cf222e; }}
 </style>
 <style media=""print"">
 @page {{ size:A4; margin:18mm; }}
@@ -89,6 +107,22 @@ h1,h2,h3 {{ page-break-after:avoid; }}
       var a = e.target.closest && e.target.closest('a');
       if (a && bad.test(a.getAttribute('href')||'')) e.preventDefault();
     }}, true);
+  }})();
+  (function(){{
+    var map = {{NOTE:'note',TIP:'tip',IMPORTANT:'important',WARNING:'warning',CAUTION:'caution'}};
+    document.querySelectorAll('blockquote').forEach(function(bq){{
+      var p = bq.querySelector('p');
+      if(!p) return;
+      var m = p.innerHTML.match(/^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(?:<br\s*\/?>)?/i);
+      if(!m) return;
+      var type = map[m[1].toUpperCase()];
+      p.innerHTML = p.innerHTML.slice(m[0].length);
+      bq.classList.add('markdown-alert','markdown-alert-'+type);
+      var h = document.createElement('p');
+      h.className = 'markdown-alert-title';
+      h.textContent = m[1].charAt(0)+m[1].slice(1).toLowerCase();
+      bq.insertBefore(h, p);
+    }});
   }})();
   if (window.hljs) {{ hljs.highlightAll(); }}
   if (window.renderMathInElement) {{

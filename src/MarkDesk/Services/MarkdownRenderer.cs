@@ -1,4 +1,5 @@
 using Markdig;
+using Markdig.Extensions.AutoIdentifiers;
 
 namespace MarkDesk.Services;
 
@@ -12,6 +13,9 @@ public sealed class MarkdownRenderer : IMarkdownRenderer
         .UseAutoLinks()         // bare URLs
         .UseGridTables()
         .UseGenericAttributes()
+        .UseEmojiAndSmiley()              // :smile: -> 😄
+        .UseAutoIdentifiers(AutoIdentifierOptions.GitHub)  // heading -> id (anchors)
+        .UseCustomContainers()            // :::warning ... :::
         .DisableHtml()          // no raw HTML passthrough (§4.2 XSS guard)
         .Build();
 
