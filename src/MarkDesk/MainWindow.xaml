@@ -8,7 +8,7 @@
         xmlns:controls="clr-namespace:MarkDesk.Controls"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
-        Title="{Binding Title}" Height="650" Width="1100"
+        Title="{Binding Title}" Icon="/Assets/App.ico" Height="650" Width="1100"
         AllowDrop="True" Drop="Window_Drop" PreviewDragOver="Window_PreviewDragOver"
         WindowStartupLocation="CenterScreen">
     <Window.Resources>
