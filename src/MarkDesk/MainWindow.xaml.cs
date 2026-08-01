@@ -1,8 +1,10 @@
 ﻿using System.ComponentModel;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -18,6 +20,9 @@ public partial class MainWindow : Window
 {
     public static readonly RoutedUICommand CycleViewModeCommand = new(
         "Cycle View Mode", "CycleViewMode", typeof(MainWindow));
+
+    [DllImport("dwmapi.dll", PreserveSig = true)]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int cbAttribute);
 
     private static readonly HashSet<string> ImageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -161,10 +166,29 @@ public partial class MainWindow : Window
             Resources["MenuPopupBorderBrush"] = Brush(0x99, 0x99, 0x99);
         }
 
+        TryApplyTitleBarDark(dark);
         Editor.ApplyTheme(dark);
         ApplyOpenSubmenus();
         if (_previewVisible)
             RenderNow();
+    }
+
+    private void TryApplyTitleBarDark(bool dark)
+    {
+        try
+        {
+            var hwnd = new WindowInteropHelper(this).Handle;
+            if (hwnd == IntPtr.Zero)
+                return;
+            var value = dark ? 1 : 0;
+            // DWMWA_USE_IMMERSIVE_DARK_MODE: attr 20 (Win10 2004+), fallback 19 (1809+)
+            if (DwmSetWindowAttribute(hwnd, 20, ref value, sizeof(int)) != 0)
+                DwmSetWindowAttribute(hwnd, 19, ref value, sizeof(int));
+        }
+        catch
+        {
+            // Pre-Win10 1809: immersive dark mode unsupported; ignore.
+        }
     }
 
     private void RegisterSubmenuHandlers()
