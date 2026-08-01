@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Xml;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
@@ -37,6 +38,45 @@ public partial class MarkdownEditor : UserControl
 
         Editor.TextChanged += (_, _) => SyncToProperty();
         Editor.TextArea.Caret.PositionChanged += (_, _) => CaretPositionChanged?.Invoke(this, EventArgs.Empty);
+        Loaded += OnLoaded;
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        var sv = FindVisualChild<ScrollViewer>(Editor);
+        if (sv != null)
+            sv.ScrollChanged += (_, _) => ScrollChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public double ScrollProportion
+    {
+        get
+        {
+            var sv = FindVisualChild<ScrollViewer>(Editor);
+            return sv is null || sv.ScrollableHeight <= 0 ? 0 : sv.VerticalOffset / sv.ScrollableHeight;
+        }
+        set
+        {
+            var sv = FindVisualChild<ScrollViewer>(Editor);
+            if (sv is not null && sv.ScrollableHeight > 0)
+                sv.ScrollToVerticalOffset(value * sv.ScrollableHeight);
+        }
+    }
+
+    public event EventHandler? ScrollChanged;
+
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T matched)
+                return matched;
+            var result = FindVisualChild<T>(child);
+            if (result != null)
+                return result;
+        }
+        return null;
     }
 
     public string DocumentText

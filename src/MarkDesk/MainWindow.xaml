@@ -36,7 +36,7 @@
                 <MenuItem Header="_Save" InputGestureText="Ctrl+S" Command="Save" />
                 <MenuItem Header="Save _As…" InputGestureText="Ctrl+Shift+S" Command="SaveAs" />
                 <Separator />
-                <MenuItem Header="Recent" IsEnabled="False" />
+                <MenuItem Header="Recent" x:Name="RecentMenu" SubmenuOpened="Recent_SubmenuOpened" />
                 <Separator />
                 <MenuItem Header="E_xit" Command="Close" />
             </MenuItem>

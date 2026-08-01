@@ -22,4 +22,5 @@ public sealed class AppSettings
     public bool ScrollSync { get; set; } = true;
     public int RenderDebounceMs { get; set; } = 150;
     public PdfPageSize PdfPageSize { get; set; } = PdfPageSize.A4;
+    public List<string> RecentFiles { get; set; } = new();
 }

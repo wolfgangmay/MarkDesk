@@ -84,6 +84,26 @@ public partial class MainViewModel : ObservableObject
     public int LayoutThresholdPx => _settingsService.Current.LayoutThresholdPx;
     public int RenderDebounceMs => _settingsService.Current.RenderDebounceMs;
     public PdfPageSize PdfPageSize => _settingsService.Current.PdfPageSize;
+    public bool ScrollSync => _settingsService.Current.ScrollSync;
+    public IReadOnlyList<string> RecentFiles => _settingsService.Current.RecentFiles;
+
+    public void AddRecent(string path)
+    {
+        var list = _settingsService.Current.RecentFiles;
+        list.Remove(path);
+        list.Insert(0, path);
+        while (list.Count > 10)
+            list.RemoveAt(list.Count - 1);
+        _settingsService.Save();
+        OnPropertyChanged(nameof(RecentFiles));
+    }
+
+    public void ClearRecent()
+    {
+        _settingsService.Current.RecentFiles.Clear();
+        _settingsService.Save();
+        OnPropertyChanged(nameof(RecentFiles));
+    }
 
     public string? DocumentFolder =>
         string.IsNullOrEmpty(FilePath) ? null : Path.GetDirectoryName(FilePath);
@@ -150,6 +170,21 @@ public partial class MainViewModel : ObservableObject
         LoadFrom(path);
     }
 
+    public void ReloadCurrent()
+    {
+        if (FilePath == null)
+            return;
+        try
+        {
+            var result = _fileService.Load(FilePath);
+            SetDocument(result.Text, FilePath, result.Encoding);
+        }
+        catch (Exception ex)
+        {
+            _dialogService.Warn("Failed to reload file:\n" + ex.Message, "Reload");
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(CanSave))]
     private void Save()
     {
@@ -199,6 +234,7 @@ public partial class MainViewModel : ObservableObject
         {
             var result = _fileService.Load(path);
             SetDocument(result.Text, path, result.Encoding);
+            AddRecent(path);
         }
         catch (Exception ex)
         {
@@ -213,6 +249,7 @@ public partial class MainViewModel : ObservableObject
             _fileService.Save(path, DocumentText, _currentEncoding.Encoding);
             IsDirty = false;
             UpdateTitle();
+            AddRecent(path);
         }
         catch (Exception ex)
         {

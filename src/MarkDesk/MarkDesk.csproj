@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <RootNamespace>MarkDesk</RootNamespace>
     <AssemblyName>MarkDesk</AssemblyName>
     <Version>0.1.0</Version>

@@ -26,6 +26,7 @@ public partial class MainWindow : Window
     private readonly DispatcherTimer _debounceTimer;
     private readonly IDialogService _dialogService;
     private readonly IImagePasterService _imagePaster;
+    private readonly FileWatcher _fileWatcher;
 
     private bool _previewVisible;
     private bool _tabbedShowPreview;
@@ -38,6 +39,7 @@ public partial class MainWindow : Window
         ViewModel = viewModel;
         _dialogService = dialogService;
         _imagePaster = imagePaster;
+        _fileWatcher = new FileWatcher();
         DataContext = ViewModel;
 
         _debounceTimer = new DispatcherTimer(DispatcherPriority.Background)
@@ -48,9 +50,36 @@ public partial class MainWindow : Window
 
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         SizeChanged += (_, _) => ApplyLayout();
-        Loaded += (_, _) => ApplyLayout();
+        Loaded += (_, _) => { ApplyLayout(); _fileWatcher.Watch(ViewModel.FilePath); };
         PreviewKeyDown += OnPreviewKeyDown;
+        Editor.ScrollChanged += OnEditorScroll;
+        _fileWatcher.ExternalChanged += (_, _) => Dispatcher.BeginInvoke(OnExternalChange);
         Closing += OnClosing;
+    }
+
+    private void OnEditorScroll(object? sender, EventArgs e)
+    {
+        if (!ViewModel.ScrollSync || !_previewVisible)
+            return;
+        _ = Preview.SetScrollProportionAsync(Editor.ScrollProportion);
+    }
+
+    private void OnExternalChange()
+    {
+        if (ViewModel.FilePath == null)
+            return;
+
+        if (!ViewModel.IsDirty)
+        {
+            ViewModel.ReloadCurrent();
+            return;
+        }
+
+        var choice = _dialogService.AskReloadExternalChange();
+        if (choice == FileReloadChoice.Reload)
+            ViewModel.ReloadCurrent();
+        else if (choice == FileReloadChoice.KeepMine)
+            ViewModel.IsDirty = true;
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -62,6 +91,8 @@ public partial class MainWindow : Window
             _debounceTimer.Stop();
             _debounceTimer.Start();
         }
+        else if (e.PropertyName == nameof(ViewModel.FilePath))
+            _fileWatcher.Watch(ViewModel.FilePath);
     }
 
     private enum LayoutState { EditOnly, PreviewOnly, SplitWide, SplitTabbed }
@@ -213,16 +244,42 @@ public partial class MainWindow : Window
         ApplyLayout();
     }
 
+    private void Recent_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        RecentMenu.Items.Clear();
+        var recent = ViewModel.RecentFiles;
+        if (recent.Count == 0)
+        {
+            RecentMenu.Items.Add(new MenuItem { Header = "(empty)", IsEnabled = false });
+            return;
+        }
+
+        foreach (var path in recent)
+        {
+            var captured = path;
+            var item = new MenuItem { Header = path };
+            item.Click += (_, _) => ViewModel.OpenPath(captured);
+            RecentMenu.Items.Add(item);
+        }
+
+        RecentMenu.Items.Add(new Separator());
+        var clear = new MenuItem { Header = "Clear list" };
+        clear.Click += (_, _) => ViewModel.ClearRecent();
+        RecentMenu.Items.Add(clear);
+    }
+
     private void OnClosing(object? sender, CancelEventArgs e)
     {
         if (ViewModel.IsDirty && ViewModel.AskUnsavedOnClose() == UnsavedChoice.Cancel)
             e.Cancel = true;
+        else
+            _fileWatcher.Dispose();
     }
 
     private void New_Executed(object sender, ExecutedRoutedEventArgs e) => ViewModel.NewDocumentCommand.Execute(null);
     private void Open_Executed(object sender, ExecutedRoutedEventArgs e) => ViewModel.OpenCommand.Execute(null);
-    private void Save_Executed(object sender, ExecutedRoutedEventArgs e) => ViewModel.SaveCommand.Execute(null);
-    private void SaveAs_Executed(object sender, ExecutedRoutedEventArgs e) => ViewModel.SaveAsCommand.Execute(null);
+    private void Save_Executed(object sender, ExecutedRoutedEventArgs e) { _fileWatcher.NotifySelfSave(); ViewModel.SaveCommand.Execute(null); }
+    private void SaveAs_Executed(object sender, ExecutedRoutedEventArgs e) { _fileWatcher.NotifySelfSave(); ViewModel.SaveAsCommand.Execute(null); }
 
     private async void ExportPdf_Executed(object sender, ExecutedRoutedEventArgs e)
     {

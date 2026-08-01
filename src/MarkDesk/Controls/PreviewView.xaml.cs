@@ -40,6 +40,16 @@ public partial class PreviewView : UserControl
             await EnsureInitializedAsync();
     }
 
+    public async Task SetScrollProportionAsync(double proportion)
+    {
+        if (!_initialized)
+            return;
+        var clamped = Math.Round(Math.Clamp(proportion, 0, 1), 4)
+            .ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await WebView.CoreWebView2.ExecuteScriptAsync(
+            $"window.scrollTo(0,{clamped}*(document.documentElement.scrollHeight-window.innerHeight))");
+    }
+
     public async Task<bool> PrintToPdfAsync(string html, string? documentFolder, string outputPath, PdfPageSize pageSize)
     {
         await EnsureInitializedAsync();
