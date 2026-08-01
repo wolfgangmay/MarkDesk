@@ -14,6 +14,8 @@ public partial class MainViewModel : ObservableObject
     private readonly ISettingsService _settingsService;
     private readonly IFileService _fileService;
     private readonly IDialogService _dialogService;
+    private readonly IMarkdownRenderer _markdownRenderer;
+    private readonly PreviewTemplate _previewTemplate;
 
     private DetectedEncoding _currentEncoding = new(new UTF8Encoding(false), "UTF-8", false);
     private bool _isLoading;
@@ -21,11 +23,15 @@ public partial class MainViewModel : ObservableObject
     public MainViewModel(
         ISettingsService settingsService,
         IFileService fileService,
-        IDialogService dialogService)
+        IDialogService dialogService,
+        IMarkdownRenderer markdownRenderer,
+        PreviewTemplate previewTemplate)
     {
         _settingsService = settingsService;
         _fileService = fileService;
         _dialogService = dialogService;
+        _markdownRenderer = markdownRenderer;
+        _previewTemplate = previewTemplate;
         ViewMode = _settingsService.Current.DefaultViewMode;
         Encoding = _currentEncoding.DisplayName;
         UpdateTitle();
@@ -74,6 +80,18 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private int _wordCount;
+
+    public int LayoutThresholdPx => _settingsService.Current.LayoutThresholdPx;
+    public int RenderDebounceMs => _settingsService.Current.RenderDebounceMs;
+
+    public string? DocumentFolder =>
+        string.IsNullOrEmpty(FilePath) ? null : Path.GetDirectoryName(FilePath);
+
+    public string BuildPreviewDocument()
+    {
+        var body = _markdownRenderer.RenderToHtml(DocumentText);
+        return _previewTemplate.Build(body);
+    }
 
     public bool IsEditActive
     {

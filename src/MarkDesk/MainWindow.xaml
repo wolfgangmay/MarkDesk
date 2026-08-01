@@ -63,7 +63,7 @@
                 <RadioButton Content="Split" GroupName="ViewMode" IsChecked="{Binding IsSplitActive, Mode=TwoWay}" />
                 <RadioButton Content="Preview" GroupName="ViewMode" IsChecked="{Binding IsPreviewActive, Mode=TwoWay}" />
                 <Separator />
-                <ToggleButton x:Name="WrapToggle" Content="Wrap" IsChecked="{Binding ElementName=Editor, Path=WordWrap, Mode=TwoWay}" />
+                <ToggleButton Content="Wrap" IsChecked="{Binding WordWrap, ElementName=Editor, Mode=TwoWay}" />
                 <Button Content="Zoom −" IsEnabled="False" />
                 <Button Content="Zoom +" IsEnabled="False" />
             </ToolBar>
@@ -91,7 +91,30 @@
             </StatusBarItem>
         </StatusBar>
 
-        <controls:MarkdownEditor x:Name="Editor"
-                                 DocumentText="{Binding DocumentText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <Grid x:Name="ContentRoot">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <StackPanel x:Name="TabStrip" Orientation="Horizontal" Visibility="Collapsed" Margin="6,3">
+                <ToggleButton x:Name="TabEdit" Content="Edit" Margin="0,0,4,0" Click="TabEdit_Click" />
+                <ToggleButton x:Name="TabPreview" Content="Preview" Click="TabPreview_Click" />
+            </StackPanel>
+
+            <Grid x:Name="SplitGrid" Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="EditorCol" Width="*" />
+                    <ColumnDefinition x:Name="SplitterCol" Width="Auto" />
+                    <ColumnDefinition x:Name="PreviewCol" Width="*" />
+                </Grid.ColumnDefinitions>
+                <controls:MarkdownEditor x:Name="Editor" Grid.Column="0"
+                                         DocumentText="{Binding DocumentText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <GridSplitter x:Name="Splitter" Grid.Column="1" Width="6"
+                              HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                              ResizeBehavior="PreviousAndNext" Background="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}" />
+                <controls:PreviewView x:Name="Preview" Grid.Column="2" />
+            </Grid>
+        </Grid>
     </DockPanel>
 </Window>

@@ -1,0 +1,2 @@
+﻿<p>Inline $a^2$ and block:</p>
+<p>$$E = mc^2$$</p>

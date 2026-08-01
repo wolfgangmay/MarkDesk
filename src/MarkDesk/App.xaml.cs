@@ -36,6 +36,8 @@ public partial class App : Application
         services.AddSingleton<IEncodingDetector, EncodingDetector>();
         services.AddSingleton<IFileService, FileService>();
         services.AddSingleton<IDialogService, DialogService>();
+        services.AddSingleton<IMarkdownRenderer, MarkdownRenderer>();
+        services.AddSingleton<PreviewTemplate>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
 

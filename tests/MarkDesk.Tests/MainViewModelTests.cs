@@ -39,7 +39,9 @@ public class MainViewModelTests
     private static MainViewModel Create(FakeFileService? file = null, FakeDialogService? dialog = null)
     {
         var settings = new SettingsService(Path.Combine(Path.GetTempPath(), "MarkDeskVM_" + Guid.NewGuid().ToString("N")));
-        return new MainViewModel(settings, file ?? new FakeFileService(), dialog ?? new FakeDialogService());
+        var renderer = new MarkdownRenderer();
+        var template = new PreviewTemplate();
+        return new MainViewModel(settings, file ?? new FakeFileService(), dialog ?? new FakeDialogService(), renderer, template);
     }
 
     [Fact]
