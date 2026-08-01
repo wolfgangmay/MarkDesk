@@ -1,0 +1,91 @@
+﻿<Window x:Class="MarkDesk.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:MarkDesk"
+        xmlns:vm="clr-namespace:MarkDesk.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+        Title="{Binding Title}" Height="650" Width="1100"
+        WindowStartupLocation="CenterScreen">
+    <Window.CommandBindings>
+        <CommandBinding Command="Open" Executed="Open_Executed" />
+        <CommandBinding Command="Save" Executed="Save_Executed" />
+        <CommandBinding Command="SaveAs" Executed="SaveAs_Executed" />
+        <CommandBinding Command="Print" Executed="ExportPdf_Executed" />
+        <CommandBinding Command="Close" Executed="Exit_Executed" />
+        <CommandBinding Command="{x:Static local:MainWindow.CycleViewModeCommand}" Executed="CycleViewMode_Executed" />
+    </Window.CommandBindings>
+    <Window.InputBindings>
+        <KeyBinding Key="F6" Command="{x:Static local:MainWindow.CycleViewModeCommand}" />
+    </Window.InputBindings>
+    <DockPanel>
+        <Menu DockPanel.Dock="Top">
+            <MenuItem Header="_File">
+                <MenuItem Header="_Open…" InputGestureText="Ctrl+O" Command="Open" />
+                <MenuItem Header="_Save" InputGestureText="Ctrl+S" Command="Save" />
+                <MenuItem Header="Save _As…" InputGestureText="Ctrl+Shift+S" Command="SaveAs" />
+                <Separator />
+                <MenuItem Header="Recent" IsEnabled="False" />
+                <Separator />
+                <MenuItem Header="E_xit" Command="Close" />
+            </MenuItem>
+            <MenuItem Header="_Edit">
+                <MenuItem Header="_Find…" InputGestureText="Ctrl+F" IsEnabled="False" />
+                <MenuItem Header="_Replace…" InputGestureText="Ctrl+H" IsEnabled="False" />
+            </MenuItem>
+            <MenuItem Header="_View">
+                <MenuItem Header="_Edit" IsCheckable="True" IsChecked="{Binding IsEditActive, Mode=OneWay}" />
+                <MenuItem Header="_Split" IsCheckable="True" IsChecked="{Binding IsSplitActive, Mode=OneWay}" />
+                <MenuItem Header="_Preview" IsCheckable="True" IsChecked="{Binding IsPreviewActive, Mode=OneWay}" />
+            </MenuItem>
+            <MenuItem Header="_Export">
+                <MenuItem Header="Export as PDF…" InputGestureText="Ctrl+P" Command="Print" />
+            </MenuItem>
+            <MenuItem Header="_Help">
+                <MenuItem Header="About MarkDesk" IsEnabled="False" />
+            </MenuItem>
+        </Menu>
+
+        <ToolBarTray DockPanel.Dock="Top">
+            <ToolBar>
+                <RadioButton Content="Edit" GroupName="ViewMode" IsChecked="{Binding IsEditActive, Mode=TwoWay}" />
+                <RadioButton Content="Split" GroupName="ViewMode" IsChecked="{Binding IsSplitActive, Mode=TwoWay}" />
+                <RadioButton Content="Preview" GroupName="ViewMode" IsChecked="{Binding IsPreviewActive, Mode=TwoWay}" />
+                <Separator />
+                <ToggleButton x:Name="WrapToggle" Content="Wrap" IsEnabled="False" />
+                <Button Content="Zoom −" IsEnabled="False" />
+                <Button Content="Zoom +" IsEnabled="False" />
+            </ToolBar>
+        </ToolBarTray>
+
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem>
+                <TextBlock>
+                    <Run Text="Ln " /><Run Text="{Binding CaretLine}" />
+                    <Run Text=", Col " /><Run Text="{Binding CaretColumn}" />
+                </TextBlock>
+            </StatusBarItem>
+            <Separator />
+            <StatusBarItem>
+                <TextBlock Text="{Binding Encoding}" />
+            </StatusBarItem>
+            <Separator />
+            <StatusBarItem>
+                <TextBlock>
+                    <Run Text="{Binding WordCount}" /><Run Text=" words" />
+                </TextBlock>
+            </StatusBarItem>
+            <StatusBarItem DockPanel.Dock="Right" HorizontalAlignment="Right">
+                <TextBlock x:Name="PreviewStatus" Text="Preview: idle" />
+            </StatusBarItem>
+        </StatusBar>
+
+        <Grid x:Name="ContentHost" Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}">
+            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center"
+                       Opacity="0.4" FontSize="16"
+                       Text="MarkDesk — scaffold ready (Phase 0)" />
+        </Grid>
+    </DockPanel>
+</Window>
