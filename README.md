@@ -107,7 +107,7 @@ This project was built pair-programming with AI assistants through the [opencode
 
 Models used during development:
 - **GLM-5.2** (Zhipu AI)
-- **DeepSeek V3.1 0731**
+- **DeepSeek V4 Flash 0731**
 
 ## License
 

@@ -107,7 +107,7 @@ dotnet publish src/MarkDesk -c Release -p:PublishProfile=PortableFramework
 
 开发期间使用过的模型:
 - **GLM-5.2**(智谱 AI)
-- **DeepSeek V3.1 0731**
+- **DeepSeek V4 Flash 0731**
 
 ## 许可证
 
