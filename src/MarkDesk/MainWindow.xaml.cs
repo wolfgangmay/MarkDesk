@@ -404,6 +404,26 @@ public partial class MainWindow : Window
         ApplyLayout();
     }
 
+    private void SetDefaultApp_Click(object sender, RoutedEventArgs e)
+    {
+        var ok = FileAssociationService.Register(".md", ".markdown");
+        if (ok)
+        {
+            ThemedMessageBox.Show(this,
+                "MarkDesk is registered for .md and .markdown files.\n\n" +
+                "On Windows 10/11, if another app is currently the default, open\n" +
+                "Settings \u2192 Apps \u2192 Default apps \u2192 MarkDesk\n" +
+                "and confirm once. Also re-run this if you move the MarkDesk folder.",
+                "File association", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            ThemedMessageBox.Show(this,
+                "Could not register file associations.",
+                "File association", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
     private void PopulateRecent()
     {
         RecentMenu.Items.Clear();

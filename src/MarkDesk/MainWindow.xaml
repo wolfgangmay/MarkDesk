@@ -188,6 +188,8 @@
                                       IsChecked="{Binding ThemeMode, Converter={StaticResource EnumBool}, ConverterParameter={x:Static models:ThemeMode.Dark}, Mode=TwoWay}" />
                         </MenuItem>
                         <MenuItem Header="_Settings…" Click="Settings_Click" />
+                        <Separator />
+                        <MenuItem Header="Set as _Default for .md…" Click="SetDefaultApp_Click" />
                     </MenuItem>
                     <MenuItem Header="_Help">
                         <MenuItem Header="About MarkDesk" Click="About_Click" />
