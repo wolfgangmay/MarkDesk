@@ -106,8 +106,8 @@ dotnet publish src/MarkDesk -c Release -p:PublishProfile=PortableFramework
 This project was built pair-programming with AI assistants through the [opencode](https://opencode.ai) CLI.
 
 Models used during development:
-- **GLM-5.2** (Zhipu AI) — primary coding model
-- **MiniMax M2.5** — earlier sessions
+- **GLM-5.2** (Zhipu AI)
+- **DeepSeek V3.1 0731**
 
 ## License
 

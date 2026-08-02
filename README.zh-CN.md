@@ -106,8 +106,8 @@ dotnet publish src/MarkDesk -c Release -p:PublishProfile=PortableFramework
 本项目通过与 AI 助手结对编程完成,使用 [opencode](https://opencode.ai) CLI。
 
 开发期间使用过的模型:
-- **GLM-5.2**(智谱 AI)—— 主力编码模型
-- **MiniMax M2.5** —— 早期会话
+- **GLM-5.2**(智谱 AI)
+- **DeepSeek V3.1 0731**
 
 ## 许可证
 
