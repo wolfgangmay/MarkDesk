@@ -5,6 +5,7 @@
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
+![Downloads](https://img.shields.io/github/downloads/wolfgangmay/MarkDesk/total)
 
 ## 这是什么
 
