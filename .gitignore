@@ -38,6 +38,10 @@ AppPackages/
 *.log
 *.tmp
 *.bak
+session.txt
+
+## Local-only documents (not for the repo)
+req.md
 
 ## Generated documents (export/test artifacts)
 *.pdf
