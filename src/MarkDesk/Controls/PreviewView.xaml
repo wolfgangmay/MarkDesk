@@ -9,10 +9,9 @@
                    Opacity="0.4" FontSize="14"
                    Text="Preparing preview…" />
         <!-- Offscreen WebView2 used exclusively for PDF export, so exporting a
-             light-themed document never disturbs the on-screen preview. -->
+             light-themed document never disturbs the on-screen preview.
+             Created on demand per export and disposed afterwards (#1). -->
         <Grid x:Name="PrintHost" Visibility="Hidden" Width="0" Height="0"
-              HorizontalAlignment="Left" VerticalAlignment="Top">
-            <wv2:WebView2 x:Name="PrintWebView" />
-        </Grid>
+              HorizontalAlignment="Left" VerticalAlignment="Top" />
     </Grid>
 </UserControl>

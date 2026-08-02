@@ -179,6 +179,10 @@ public partial class MainViewModel : ObservableObject
     {
         if (!File.Exists(path))
             return;
+        // Normalize to an absolute path: relative paths (e.g. from command line)
+        // would make DocumentFolder relative, which WebView2's virtual-host
+        // mapping rejects — silently breaking rendering.
+        path = Path.GetFullPath(path);
         if (!EnsureSaved())
             return;
         LoadFrom(path);

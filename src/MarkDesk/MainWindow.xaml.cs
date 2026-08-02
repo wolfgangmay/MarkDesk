@@ -454,7 +454,10 @@ public partial class MainWindow : Window
         if (ViewModel.IsDirty && ViewModel.AskUnsavedOnClose() == UnsavedChoice.Cancel)
             e.Cancel = true;
         else
+        {
             _fileWatcher.Dispose();
+            Preview.Dispose(); // #2: release WebView2 + Chromium children cleanly.
+        }
     }
 
     private void New_Executed(object sender, ExecutedRoutedEventArgs e) => ViewModel.NewDocumentCommand.Execute(null);
