@@ -1,4 +1,5 @@
 using System.Windows;
+using MarkDesk.Services;
 using MarkDesk.ViewModels;
 
 namespace MarkDesk.Views;
@@ -14,6 +15,7 @@ public partial class SettingsDialog : Window
         _viewModel.CurrentWindowWidth = currentWindowWidth;
         _viewModel.Load();
         DataContext = _viewModel;
+        Loaded += (_, _) => WindowTheme.ApplyTitleBar(this);
     }
 
     private void Ok_Click(object sender, RoutedEventArgs e)

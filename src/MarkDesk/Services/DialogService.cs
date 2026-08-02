@@ -1,4 +1,5 @@
 using System.Windows;
+using MarkDesk.Controls;
 using Microsoft.Win32;
 
 namespace MarkDesk.Services;
@@ -7,6 +8,8 @@ public sealed class DialogService : IDialogService
 {
     private const string MarkdownFilter = "Markdown (*.md;*.markdown)|*.md;*.markdown|All files (*.*)|*.*";
 
+    private static Window? ActiveOwner => Application.Current.MainWindow;
+
     public string? PickOpenMarkdownFile()
     {
         var dlg = new OpenFileDialog
@@ -14,7 +17,7 @@ public sealed class DialogService : IDialogService
             Filter = MarkdownFilter,
             Title = "Open Markdown"
         };
-        return dlg.ShowDialog() == true ? dlg.FileName : null;
+        return dlg.ShowDialog(ActiveOwner) == true ? dlg.FileName : null;
     }
 
     public string? PickSaveMarkdownFile(string? currentPath)
@@ -27,7 +30,7 @@ public sealed class DialogService : IDialogService
             DefaultExt = ".md",
             AddExtension = true
         };
-        return dlg.ShowDialog() == true ? dlg.FileName : null;
+        return dlg.ShowDialog(ActiveOwner) == true ? dlg.FileName : null;
     }
 
     public string? PickSavePdfFile(string? currentPath)
@@ -42,16 +45,14 @@ public sealed class DialogService : IDialogService
             DefaultExt = ".pdf",
             AddExtension = true
         };
-        return dlg.ShowDialog() == true ? dlg.FileName : null;
+        return dlg.ShowDialog(ActiveOwner) == true ? dlg.FileName : null;
     }
 
     public FileReloadChoice AskReloadExternalChange()
     {
-        var result = MessageBox.Show(
+        var result = ThemedMessageBox.Show(ActiveOwner,
             "This file has been changed by another program.\nReload it?",
-            "File changed",
-            MessageBoxButton.YesNoCancel,
-            MessageBoxImage.Question);
+            "File changed", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
         return result switch
         {
             MessageBoxResult.Yes => FileReloadChoice.Reload,
@@ -61,15 +62,14 @@ public sealed class DialogService : IDialogService
     }
 
     public bool AskConfirm(string message, string title) =>
-        MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+        ThemedMessageBox.Show(ActiveOwner, message, title, MessageBoxButton.YesNo, MessageBoxImage.Question)
+            == MessageBoxResult.Yes;
 
     public UnsavedChoice AskUnsavedChanges()
     {
-        var result = MessageBox.Show(
+        var result = ThemedMessageBox.Show(ActiveOwner,
             "You have unsaved changes. Save before continuing?",
-            "Unsaved changes",
-            MessageBoxButton.YesNoCancel,
-            MessageBoxImage.Warning);
+            "Unsaved changes", MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
         return result switch
         {
             MessageBoxResult.Yes => UnsavedChoice.Save,
@@ -79,5 +79,5 @@ public sealed class DialogService : IDialogService
     }
 
     public void Warn(string message, string title) =>
-        MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
+        ThemedMessageBox.Show(ActiveOwner, message, title, MessageBoxButton.OK, MessageBoxImage.Warning);
 }

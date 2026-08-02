@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -8,6 +9,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using MarkDesk.Controls;
 using MarkDesk.Models;
 using MarkDesk.Services;
 using MarkDesk.ViewModels;
@@ -125,45 +127,49 @@ public partial class MainWindow : Window
     {
         if (dark)
         {
-            Resources["WindowBgBrush"] = Brush(0x1E, 0x1E, 0x1E);
-            Resources["BarBgBrush"] = Brush(0x25, 0x25, 0x26);
-            Resources["ToneBgBrush"] = Brush(0x2D, 0x2D, 0x2D);
-            Resources["ContentBrush"] = Brush(0xE6, 0xE6, 0xE6);
-            Resources["MutedBrush"] = Brush(0x9A, 0x9A, 0x9A);
-            Resources["DividerBrush"] = Brush(0x3F, 0x3F, 0x46);
-            Resources["HoverBrush"] = Brush(0x3A, 0x3A, 0x3A);
-            Resources["PressedBrush"] = Brush(0x4A, 0x4A, 0x4A);
-            Resources["AccentBrush"] = Brush(0x4A, 0xA3, 0xE3);
-            Resources["AccentSoftBrush"] = Brush(0x1E, 0x3A, 0x5F);
-            Resources["AccentTextBrush"] = Brush(0x6C, 0xB6, 0xF4);
-            Resources[SystemColors.MenuBrushKey] = Brush(0x2D, 0x2D, 0x30);
-            Resources[SystemColors.MenuTextBrushKey] = Brush(0xE6, 0xE6, 0xE6);
-            Resources[SystemColors.MenuBarBrushKey] = Brush(0x25, 0x25, 0x26);
-            Resources[SystemColors.HighlightBrushKey] = Brush(0x44, 0x4A, 0x52);
-            Resources[SystemColors.ControlTextBrushKey] = Brush(0xE6, 0xE6, 0xE6);
-            Resources["MenuPopupBrush"] = Brush(0x2D, 0x2D, 0x30);
-            Resources["MenuPopupBorderBrush"] = Brush(0x3F, 0x3F, 0x46);
+            Application.Current.Resources["WindowBgBrush"] = Brush(0x1E, 0x1E, 0x1E);
+            Application.Current.Resources["BarBgBrush"] = Brush(0x25, 0x25, 0x26);
+            Application.Current.Resources["ToneBgBrush"] = Brush(0x2D, 0x2D, 0x2D);
+            Application.Current.Resources["ContentBrush"] = Brush(0xE6, 0xE6, 0xE6);
+            Application.Current.Resources["MutedBrush"] = Brush(0x9A, 0x9A, 0x9A);
+            Application.Current.Resources["DividerBrush"] = Brush(0x3F, 0x3F, 0x46);
+            Application.Current.Resources["HoverBrush"] = Brush(0x3A, 0x3A, 0x3A);
+            Application.Current.Resources["PressedBrush"] = Brush(0x4A, 0x4A, 0x4A);
+            Application.Current.Resources["AccentBrush"] = Brush(0x4A, 0xA3, 0xE3);
+            Application.Current.Resources["AccentSoftBrush"] = Brush(0x1E, 0x3A, 0x5F);
+            Application.Current.Resources["AccentTextBrush"] = Brush(0x6C, 0xB6, 0xF4);
+            Application.Current.Resources[SystemColors.MenuBrushKey] = Brush(0x2D, 0x2D, 0x30);
+            Application.Current.Resources[SystemColors.MenuTextBrushKey] = Brush(0xE6, 0xE6, 0xE6);
+            Application.Current.Resources[SystemColors.MenuBarBrushKey] = Brush(0x25, 0x25, 0x26);
+            Application.Current.Resources[SystemColors.HighlightBrushKey] = Brush(0x44, 0x4A, 0x52);
+            Application.Current.Resources[SystemColors.ControlTextBrushKey] = Brush(0xE6, 0xE6, 0xE6);
+            Application.Current.Resources[SystemColors.WindowBrushKey] = Brush(0x2D, 0x2D, 0x30);
+            Application.Current.Resources[SystemColors.HighlightTextBrushKey] = Brush(0xFF, 0xFF, 0xFF);
+            Application.Current.Resources["MenuPopupBrush"] = Brush(0x2D, 0x2D, 0x30);
+            Application.Current.Resources["MenuPopupBorderBrush"] = Brush(0x3F, 0x3F, 0x46);
         }
         else
         {
-            Resources["WindowBgBrush"] = Brush(0xFF, 0xFF, 0xFF);
-            Resources["BarBgBrush"] = Brush(0xFF, 0xFF, 0xFF);
-            Resources["ToneBgBrush"] = Brush(0xF3, 0xF3, 0xF3);
-            Resources["ContentBrush"] = Brush(0x1F, 0x1F, 0x1F);
-            Resources["MutedBrush"] = Brush(0x6E, 0x6E, 0x6E);
-            Resources["DividerBrush"] = Brush(0xE5, 0xE5, 0xE5);
-            Resources["HoverBrush"] = Brush(0xF0, 0xF0, 0xF0);
-            Resources["PressedBrush"] = Brush(0xE0, 0xE0, 0xE0);
-            Resources["AccentBrush"] = Brush(0x00, 0x67, 0xC0);
-            Resources["AccentSoftBrush"] = Brush(0xE8, 0xF1, 0xFB);
-            Resources["AccentTextBrush"] = Brush(0x00, 0x5F, 0xB8);
-            Resources[SystemColors.MenuBrushKey] = Brush(0xFF, 0xFF, 0xFF);
-            Resources[SystemColors.MenuTextBrushKey] = Brush(0x1F, 0x1F, 0x1F);
-            Resources[SystemColors.MenuBarBrushKey] = Brush(0xFF, 0xFF, 0xFF);
-            Resources[SystemColors.HighlightBrushKey] = Brush(0xCC, 0xE4, 0xF7);
-            Resources[SystemColors.ControlTextBrushKey] = Brush(0x1F, 0x1F, 0x1F);
-            Resources["MenuPopupBrush"] = Brush(0xF0, 0xF0, 0xF0);
-            Resources["MenuPopupBorderBrush"] = Brush(0x99, 0x99, 0x99);
+            Application.Current.Resources["WindowBgBrush"] = Brush(0xFF, 0xFF, 0xFF);
+            Application.Current.Resources["BarBgBrush"] = Brush(0xFF, 0xFF, 0xFF);
+            Application.Current.Resources["ToneBgBrush"] = Brush(0xF3, 0xF3, 0xF3);
+            Application.Current.Resources["ContentBrush"] = Brush(0x1F, 0x1F, 0x1F);
+            Application.Current.Resources["MutedBrush"] = Brush(0x6E, 0x6E, 0x6E);
+            Application.Current.Resources["DividerBrush"] = Brush(0xE5, 0xE5, 0xE5);
+            Application.Current.Resources["HoverBrush"] = Brush(0xF0, 0xF0, 0xF0);
+            Application.Current.Resources["PressedBrush"] = Brush(0xE0, 0xE0, 0xE0);
+            Application.Current.Resources["AccentBrush"] = Brush(0x00, 0x67, 0xC0);
+            Application.Current.Resources["AccentSoftBrush"] = Brush(0xE8, 0xF1, 0xFB);
+            Application.Current.Resources["AccentTextBrush"] = Brush(0x00, 0x5F, 0xB8);
+            Application.Current.Resources[SystemColors.MenuBrushKey] = Brush(0xFF, 0xFF, 0xFF);
+            Application.Current.Resources[SystemColors.MenuTextBrushKey] = Brush(0x1F, 0x1F, 0x1F);
+            Application.Current.Resources[SystemColors.MenuBarBrushKey] = Brush(0xFF, 0xFF, 0xFF);
+            Application.Current.Resources[SystemColors.HighlightBrushKey] = Brush(0xCC, 0xE4, 0xF7);
+            Application.Current.Resources[SystemColors.ControlTextBrushKey] = Brush(0x1F, 0x1F, 0x1F);
+            Application.Current.Resources[SystemColors.WindowBrushKey] = Brush(0xFF, 0xFF, 0xFF);
+            Application.Current.Resources[SystemColors.HighlightTextBrushKey] = Brush(0x1F, 0x1F, 0x1F);
+            Application.Current.Resources["MenuPopupBrush"] = Brush(0xF0, 0xF0, 0xF0);
+            Application.Current.Resources["MenuPopupBorderBrush"] = Brush(0x99, 0x99, 0x99);
         }
 
         TryApplyTitleBarDark(dark);
@@ -215,8 +221,8 @@ public partial class MainWindow : Window
     {
         if (mi.Template.FindName("SubMenuBorder", mi) is Border border)
         {
-            border.Background = (Brush)Resources["MenuPopupBrush"];
-            border.BorderBrush = (Brush)Resources["MenuPopupBorderBrush"];
+            border.Background = (Brush)Application.Current.Resources["MenuPopupBrush"];
+            border.BorderBrush = (Brush)Application.Current.Resources["MenuPopupBorderBrush"];
         }
         else
         {
@@ -465,7 +471,7 @@ public partial class MainWindow : Window
         PreviewStatus.Text = "Exporting PDF…";
         try
         {
-            var html = ViewModel.BuildPreviewDocument();
+            var html = ViewModel.BuildPdfDocument();
             var ok = await Preview.PrintToPdfAsync(html, ViewModel.DocumentFolder, path, ViewModel.PdfPageSize);
             PreviewStatus.Text = ok ? "PDF exported ✓" : "PDF export failed";
             if (!ok)
@@ -480,6 +486,13 @@ public partial class MainWindow : Window
 
     private void Exit_Executed(object sender, ExecutedRoutedEventArgs e) => Close();
     private void CycleViewMode_Executed(object sender, ExecutedRoutedEventArgs e) => ViewModel.CycleViewModeCommand.Execute(null);
+
+    private void About_Click(object sender, RoutedEventArgs e)
+    {
+        var ver = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0";
+        var msg = $"MarkDesk\nVersion {ver}\n\nA WPF Markdown editor with live preview, offline rendering (Markdown, KaTeX, Mermaid, syntax highlight), and PDF export.";
+        ThemedMessageBox.Show(this, msg, "About MarkDesk", MessageBoxButton.OK, MessageBoxImage.Information);
+    }
 
     private void Window_PreviewDragOver(object sender, DragEventArgs e)
         => e.Effects = IsMarkdownDrop(e.Data) || IsImageDrop(e.Data) ? DragDropEffects.Copy : DragDropEffects.None;

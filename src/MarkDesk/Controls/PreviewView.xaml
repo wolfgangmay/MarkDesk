@@ -8,5 +8,11 @@
                    HorizontalAlignment="Center" VerticalAlignment="Center"
                    Opacity="0.4" FontSize="14"
                    Text="Preparing preview…" />
+        <!-- Offscreen WebView2 used exclusively for PDF export, so exporting a
+             light-themed document never disturbs the on-screen preview. -->
+        <Grid x:Name="PrintHost" Visibility="Hidden" Width="0" Height="0"
+              HorizontalAlignment="Left" VerticalAlignment="Top">
+            <wv2:WebView2 x:Name="PrintWebView" />
+        </Grid>
     </Grid>
 </UserControl>

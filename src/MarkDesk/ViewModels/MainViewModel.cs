@@ -120,6 +120,14 @@ public partial class MainViewModel : ObservableObject
         return _previewTemplate.Build(body, IsPreviewDark);
     }
 
+    // PDF export always uses light theme regardless of the app's current theme,
+    // so the printed document is consistently readable on paper.
+    public string BuildPdfDocument()
+    {
+        var body = _markdownRenderer.RenderToHtml(DocumentText);
+        return _previewTemplate.Build(body, dark: false);
+    }
+
     public bool IsEditActive
     {
         get => ViewMode == ViewMode.Edit;
@@ -246,6 +254,7 @@ public partial class MainViewModel : ObservableObject
             var result = _fileService.Load(path);
             SetDocument(result.Text, path, result.Encoding);
             AddRecent(path);
+            ViewMode = ViewMode.Preview;
         }
         catch (Exception ex)
         {

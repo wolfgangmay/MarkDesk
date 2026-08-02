@@ -18,24 +18,6 @@
     <Window.Resources>
         <conv:EnumToBoolConverter x:Key="EnumBool" />
 
-        <SolidColorBrush x:Key="WindowBgBrush" Color="#FFFFFF" />
-        <SolidColorBrush x:Key="BarBgBrush" Color="#FFFFFF" />
-        <SolidColorBrush x:Key="ToneBgBrush" Color="#F3F3F3" />
-        <SolidColorBrush x:Key="ContentBrush" Color="#1F1F1F" />
-        <SolidColorBrush x:Key="MutedBrush" Color="#6E6E6E" />
-        <SolidColorBrush x:Key="DividerBrush" Color="#E5E5E5" />
-        <SolidColorBrush x:Key="HoverBrush" Color="#F0F0F0" />
-        <SolidColorBrush x:Key="PressedBrush" Color="#E0E0E0" />
-        <SolidColorBrush x:Key="AccentBrush" Color="#0067C0" />
-        <SolidColorBrush x:Key="AccentSoftBrush" Color="#E8F1FB" />
-        <SolidColorBrush x:Key="AccentTextBrush" Color="#005FB8" />
-
-        <SolidColorBrush x:Key="{x:Static SystemColors.MenuBrushKey}" Color="#FFFFFF" />
-        <SolidColorBrush x:Key="{x:Static SystemColors.MenuTextBrushKey}" Color="#1F1F1F" />
-        <SolidColorBrush x:Key="{x:Static SystemColors.MenuBarBrushKey}" Color="#FFFFFF" />
-        <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#CCE4F7" />
-        <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#1F1F1F" />
-
         <Style TargetType="Separator">
             <Setter Property="Height" Value="1" />
             <Setter Property="Margin" Value="0,2" />
@@ -208,7 +190,7 @@
                         <MenuItem Header="_Settings…" Click="Settings_Click" />
                     </MenuItem>
                     <MenuItem Header="_Help">
-                        <MenuItem Header="About MarkDesk" IsEnabled="False" />
+                        <MenuItem Header="About MarkDesk" Click="About_Click" />
                     </MenuItem>
                 </Menu>
 

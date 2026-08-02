@@ -21,6 +21,14 @@ public partial class PreviewView : UserControl
     private readonly SemaphoreSlim _navigationLock = new(1, 1);
     private double _previewZoom = 1.0;
 
+    // Separate, offscreen WebView2 for PDF export (own environment + user data
+    // folder). Keeps export navigation from flashing the on-screen preview.
+    private bool _printInitialized;
+    private Task _printInitTask = Task.CompletedTask;
+    private readonly SemaphoreSlim _printLock = new(1, 1);
+    private string? _printMappedFolder;
+    private bool _printAssetsMapped;
+
     public double PreviewZoom => _previewZoom;
     public event EventHandler? ZoomChanged;
 
@@ -61,10 +69,10 @@ public partial class PreviewView : UserControl
 
     public async Task<bool> PrintToPdfAsync(string html, string? documentFolder, string outputPath, PdfPageSize pageSize)
     {
-        await EnsureInitializedAsync();
-        EnsureFolderMapping(documentFolder);
+        await EnsurePrintInitializedAsync();
+        EnsurePrintFolderMapping(documentFolder);
 
-        await _navigationLock.WaitAsync();
+        await _printLock.WaitAsync();
         try
         {
             var navDone = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -83,38 +91,109 @@ public partial class PreviewView : UserControl
             {
                 if (waitingForStart || e.NavigationId != targetNavigationId)
                     return;
-                WebView.CoreWebView2.NavigationCompleted -= Completed;
-                WebView.CoreWebView2.NavigationStarting -= Starting;
+                PrintWebView.CoreWebView2.NavigationCompleted -= Completed;
+                PrintWebView.CoreWebView2.NavigationStarting -= Starting;
                 navDone.TrySetResult(e.IsSuccess);
             }
 
-            WebView.CoreWebView2.NavigationStarting += Starting;
-            WebView.CoreWebView2.NavigationCompleted += Completed;
-            WebView.CoreWebView2.NavigateToString(html);
+            PrintWebView.CoreWebView2.NavigationStarting += Starting;
+            PrintWebView.CoreWebView2.NavigationCompleted += Completed;
+            PrintWebView.CoreWebView2.NavigateToString(html);
 
             var navigation = await Task.WhenAny(navDone.Task, Task.Delay(TimeSpan.FromSeconds(10)));
             if (navigation != navDone.Task)
             {
-                WebView.CoreWebView2.NavigationCompleted -= Completed;
-                WebView.CoreWebView2.NavigationStarting -= Starting;
+                PrintWebView.CoreWebView2.NavigationCompleted -= Completed;
+                PrintWebView.CoreWebView2.NavigationStarting -= Starting;
                 return false;
             }
 
             if (!await navDone.Task)
                 return false;
 
-            var settings = WebView.CoreWebView2.Environment.CreatePrintSettings();
+            var settings = PrintWebView.CoreWebView2.Environment.CreatePrintSettings();
             settings.ShouldPrintBackgrounds = true;
             settings.ShouldPrintHeaderAndFooter = false;
             ApplyPageSize(settings, pageSize);
 
-            await WebView.CoreWebView2.PrintToPdfAsync(outputPath, settings);
+            await PrintWebView.CoreWebView2.PrintToPdfAsync(outputPath, settings);
             return true;
         }
         finally
         {
-            _navigationLock.Release();
+            _printLock.Release();
         }
+    }
+
+    private Task EnsurePrintInitializedAsync()
+    {
+        if (_printInitialized)
+            return Task.CompletedTask;
+        if (!_printInitTask.IsCompleted)
+            return _printInitTask;
+        _printInitTask = InitializePrintCoreAsync();
+        return _printInitTask;
+    }
+
+    private async Task InitializePrintCoreAsync()
+    {
+        try
+        {
+            var userDataFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "MarkDesk", "WebView2-Print");
+            Directory.CreateDirectory(userDataFolder);
+
+            var environment = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+            await PrintWebView.EnsureCoreWebView2Async(environment);
+
+            PrintWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+            PrintWebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
+
+            _printInitialized = true;
+        }
+        catch
+        {
+            // Fall back below to the shared on-screen WebView if the offscreen
+            // environment cannot be created (e.g. shared-folder lock).
+            _printInitialized = false;
+        }
+    }
+
+    private void EnsurePrintFolderMapping(string? folder)
+    {
+        folder ??= Path.GetTempPath();
+
+        if (string.Equals(_printMappedFolder, folder, StringComparison.OrdinalIgnoreCase))
+        {
+            EnsurePrintAssetsMapping();
+            return;
+        }
+
+        try { PrintWebView.CoreWebView2.ClearVirtualHostNameToFolderMapping(VirtualHost); }
+        catch { /* not mapped yet */ }
+
+        PrintWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+            VirtualHost, folder, CoreWebView2HostResourceAccessKind.Allow);
+        _printMappedFolder = folder;
+
+        EnsurePrintAssetsMapping();
+    }
+
+    private void EnsurePrintAssetsMapping()
+    {
+        if (_printAssetsMapped)
+            return;
+        try
+        {
+            if (Directory.Exists(AssetsFolder))
+            {
+                PrintWebView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    AssetsHost, AssetsFolder, CoreWebView2HostResourceAccessKind.Allow);
+                _printAssetsMapped = true;
+            }
+        }
+        catch { /* Assets optional; degrade gracefully. */ }
     }
 
     private Task EnsureInitializedAsync()
