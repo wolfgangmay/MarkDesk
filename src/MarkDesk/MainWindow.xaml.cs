@@ -147,6 +147,8 @@ public partial class MainWindow : Window
             Application.Current.Resources[SystemColors.HighlightTextBrushKey] = Brush(0xFF, 0xFF, 0xFF);
             Application.Current.Resources["MenuPopupBrush"] = Brush(0x2D, 0x2D, 0x30);
             Application.Current.Resources["MenuPopupBorderBrush"] = Brush(0x3F, 0x3F, 0x46);
+            Application.Current.Resources["ScrollThumbBrush"] = Brush(0x4A, 0x4A, 0x52);
+            Application.Current.Resources["ScrollThumbHoverBrush"] = Brush(0x6B, 0x6B, 0x75);
         }
         else
         {
@@ -170,6 +172,8 @@ public partial class MainWindow : Window
             Application.Current.Resources[SystemColors.HighlightTextBrushKey] = Brush(0x1F, 0x1F, 0x1F);
             Application.Current.Resources["MenuPopupBrush"] = Brush(0xF0, 0xF0, 0xF0);
             Application.Current.Resources["MenuPopupBorderBrush"] = Brush(0x99, 0x99, 0x99);
+            Application.Current.Resources["ScrollThumbBrush"] = Brush(0xC8, 0xC8, 0xC8);
+            Application.Current.Resources["ScrollThumbHoverBrush"] = Brush(0x8A, 0x8A, 0x8A);
         }
 
         TryApplyTitleBarDark(dark);
