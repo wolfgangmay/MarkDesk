@@ -169,6 +169,9 @@ public partial class PreviewView : UserControl, IDisposable
             WebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
 
+            WebView.CoreWebView2.NavigationStarting += OnPreviewNavigationStarting;
+            WebView.CoreWebView2.NewWindowRequested += OnNewWindowRequested;
+
             _initialized = true;
             LoadingHint.Visibility = Visibility.Collapsed;
 
@@ -322,5 +325,36 @@ public partial class PreviewView : UserControl, IDisposable
         try { WebView.Dispose(); } catch { }
         foreach (System.Windows.UIElement child in PrintHost.Children)
             try { (child as Microsoft.Web.WebView2.Wpf.WebView2)?.Dispose(); } catch { }
+    }
+
+    // A user-initiated navigation would leave the rendered document (external
+    // site, relative file, missing anchor, …) and the WebView would show an
+    // error/warning page, destroying the preview. Cancel it and explain instead.
+    private void OnPreviewNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
+    {
+        if (!e.IsUserInitiated)
+            return;
+
+        e.Cancel = true;
+
+        var uri = e.Uri ?? string.Empty;
+        var hashIndex = uri.IndexOf('#');
+        var isFragmentJump = hashIndex >= 0 &&
+            (hashIndex == 0 || uri[..hashIndex] is "about:blank");
+
+        var message = isFragmentJump
+            ? $"The anchor '#{uri[(hashIndex + 1)..]}' does not exist on this page."
+            : $"This link cannot be followed inside the preview:\n\n{uri}\n\nOnly in-page anchor links (#heading) are allowed here.";
+
+        ThemedMessageBox.Show(Application.Current.MainWindow, message,
+            "Link not allowed", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
+    private void OnNewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs e)
+    {
+        e.Handled = true;
+        ThemedMessageBox.Show(Application.Current.MainWindow,
+            $"This link cannot be followed inside the preview:\n\n{e.Uri}",
+            "Link not allowed", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 }

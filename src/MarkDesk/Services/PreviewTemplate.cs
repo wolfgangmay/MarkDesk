@@ -129,7 +129,8 @@ h1,h2,h3 {{ page-break-after:avoid; }}
       var a = e.target.closest && e.target.closest('a');
       if(!a) return;
       var href = a.getAttribute('href');
-      if(!href || href.charAt(0) !== '#' || href.length <= 1) return;
+      if(!href || href.charAt(0) !== '#') return;
+      if(href.length <= 1){{ e.preventDefault(); return; }}
       var el = document.getElementById(href.slice(1));
       if(el){{ e.preventDefault(); el.scrollIntoView({{behavior:'smooth'}}); }}
     }});

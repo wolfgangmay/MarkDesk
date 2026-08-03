@@ -10,7 +10,7 @@
 
 常用：:white_check_mark: :x: :bulb: :warning: :info: :arrow_right: :link:
 
-### 标题锚点
+### 标题锚点 :rocket:
 
 所有标题自动生成 `id`,可被页内链接跳转。例如上面这个 `### 标题锚点` 的 id 是 `标题锚点`(GitHub 风格 slug)。
 
