@@ -310,7 +310,10 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ProgressBar">
-                        <Grid Background="{DynamicResource ToneBgBrush}">
+                        <!-- ClipToBounds: the indeterminate indicator slides in
+                             from X=-70; without the clip it paints over the
+                             status-bar items to the left (zoom label overlap). -->
+                        <Grid Background="{DynamicResource ToneBgBrush}" ClipToBounds="True">
                             <Border x:Name="PART_Indicator" HorizontalAlignment="Left"
                                     Background="{DynamicResource AccentBrush}" Width="70">
                                 <Border.RenderTransform>

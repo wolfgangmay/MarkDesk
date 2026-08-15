@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -12,6 +13,17 @@ public partial class PreviewView : UserControl, IDisposable
     private const string VirtualHost = "mdlocal";
     private const string AssetsHost = "mdassets";
 
+    // WebView2's NavigateToString throws E_INVALIDARG ("Value does not fall
+    // within the expected range") on very large HTML strings (WebView2Feedback
+    // #1355), so navigation always goes through a temp file. HTML bigger than
+    // this would also make the print-layout pass (querySelectorAll over the
+    // whole DOM) take minutes, so it is skipped for those documents.
+    private const int LargeHtmlThreshold = 3_000_000;
+
+    // Chromium gives no progress for PrintToPdfAsync; guard against a wedged
+    // renderer/print process instead of hanging the export forever.
+    private static readonly TimeSpan PrintTimeout = TimeSpan.FromMinutes(10);
+
     private string? _pendingHtml;
     private string? _pendingFolder;
     private string? _mappedFolder;
@@ -20,6 +32,15 @@ public partial class PreviewView : UserControl, IDisposable
     private Task _initTask = Task.CompletedTask;
     private readonly SemaphoreSlim _navigationLock = new(1, 1);
     private double _previewZoom = 1.0;
+    private string? _lastTempFile;
+
+    /// <summary>
+    /// URI of the navigation this control itself initiated (the current
+    /// render). OnPreviewNavigationStarting lets exactly this URI through
+    /// because WebView2 can report host-initiated Navigate() as
+    /// user-initiated, and Source lags behind during NavigationStarting.
+    /// </summary>
+    private string? _programmaticNavigationUri;
 
     // Serialize PDF exports (a temporary offscreen WebView2 is created per export).
     private readonly SemaphoreSlim _printLock = new(1, 1);
@@ -87,8 +108,15 @@ public partial class PreviewView : UserControl, IDisposable
 
     public async Task<bool> PrintToPdfAsync(string html, string? documentFolder, string outputPath, PdfPageSize pageSize, PdfMargins margins)
     {
+        // Don't spawn a fresh Chromium tree while the app is shutting down:
+        // App.OnExit already terminated our WebView2 children, and a process
+        // created now would outlive the app as an orphan.
+        if (Application.Current is { } app && app.Dispatcher.HasShutdownStarted)
+            throw new InvalidOperationException("The application is shutting down; PDF export was aborted.");
+
         await _printLock.WaitAsync();
         Microsoft.Web.WebView2.Wpf.WebView2? printWv = null;
+        string? tempPath = null;
         try
         {
             // Create a fresh offscreen WebView2 for this export (own environment +
@@ -135,27 +163,44 @@ public partial class PreviewView : UserControl, IDisposable
 
             core.NavigationStarting += Starting;
             core.NavigationCompleted += Completed;
-            core.NavigateToString(html);
+            tempPath = await NavigateToTempFileAsync(core, html);
 
-            var navigation = await Task.WhenAny(navDone.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+            var navigation = await Task.WhenAny(navDone.Task, Task.Delay(TimeSpan.FromSeconds(30)));
             if (navigation != navDone.Task)
             {
                 core.NavigationCompleted -= Completed;
                 core.NavigationStarting -= Starting;
-                return false;
+                throw new TimeoutException(
+                    "The print document did not finish loading within 30 s.");
             }
 
             if (!await navDone.Task)
-                return false;
+                throw new InvalidOperationException(
+                    "Failed to load the document in the print view.");
 
             var settings = environment.CreatePrintSettings();
             settings.ShouldPrintBackgrounds = true;
             settings.ShouldPrintHeaderAndFooter = false;
             ApplyPageSize(settings, pageSize);
             ApplyMargins(settings, margins);
-            await ApplyPrintLayoutAsync(core, pageSize, margins);
+            if (html.Length < LargeHtmlThreshold)
+                await ApplyPrintLayoutAsync(core, pageSize, margins);
 
-            await core.PrintToPdfAsync(outputPath, settings);
+            // PrintToPdfAsync reports no progress and can take minutes for
+            // multi-MB documents; a hard timeout avoids hanging forever.
+            var printTask = core.PrintToPdfAsync(outputPath, settings);
+            var printWinner = await Task.WhenAny(printTask, Task.Delay(PrintTimeout));
+            if (printWinner != printTask)
+            {
+                // Observe the abandoned print task: it faults when the WebView2
+                // is disposed below, and an unobserved exception would later be
+                // logged as a spurious crash by TaskScheduler.UnobservedTaskException.
+                _ = printTask.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
+                throw new TimeoutException(
+                    $"PDF export timed out after {(int)PrintTimeout.TotalMinutes} minutes. " +
+                    "The document is probably too large for WebView2 to print.");
+            }
+            await printTask;
             return true;
         }
         finally
@@ -163,8 +208,33 @@ public partial class PreviewView : UserControl, IDisposable
             // Release the temporary WebView2 and its Chromium processes.
             try { printWv?.Dispose(); } catch { }
             if (printWv != null) PrintHost.Children.Remove(printWv);
+            try { if (tempPath != null) File.Delete(tempPath); } catch { }
             _printLock.Release();
         }
+    }
+
+    /// <summary>
+    /// Writes the HTML to a temp file and navigates to it instead of using
+    /// NavigateToString, which fails on large strings (WebView2Feedback #1355,
+    /// "Value does not fall within the expected range"). The template's
+    /// &lt;base href&gt; keeps all relative resources on the mdlocal/mdassets
+    /// virtual hosts, so file:// navigation renders identically. Returns the
+    /// temp path so the caller can clean it up.
+    /// </summary>
+    private static async Task<string> NavigateToTempFileAsync(CoreWebView2 core, string html)
+    {
+        var path = await WriteTempHtmlAsync(html);
+        core.Navigate(new Uri(path).AbsoluteUri);
+        return path;
+    }
+
+    private static async Task<string> WriteTempHtmlAsync(string html)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "MarkDesk");
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "html-" + Guid.NewGuid().ToString("N") + ".html");
+        await File.WriteAllTextAsync(path, html, new UTF8Encoding(false));
+        return path;
     }
 
     private Task EnsureInitializedAsync()
@@ -223,7 +293,19 @@ public partial class PreviewView : UserControl, IDisposable
         await _navigationLock.WaitAsync();
         try
         {
-            WebView.CoreWebView2.NavigateToString(html);
+            // Temp-file navigation instead of NavigateToString (see
+            // NavigateToTempFileAsync). The previous temp file is kept alive
+            // while its page is shown and only deleted on the next render.
+            try { if (_lastTempFile != null) File.Delete(_lastTempFile); } catch { }
+            var path = await WriteTempHtmlAsync(html);
+            _lastTempFile = path;
+            // Tag our own navigation so OnPreviewNavigationStarting lets it
+            // through: WebView2 sometimes reports host-initiated Navigate()
+            // as user-initiated (observed on the first navigation at startup),
+            // and at that moment Source is still about:blank, so the policy
+            // would misclassify the render navigation as external.
+            _programmaticNavigationUri = new Uri(path).AbsoluteUri;
+            WebView.CoreWebView2.Navigate(_programmaticNavigationUri);
             await WaitNavigationAsync();
             await ApplyZoomAsync();
         }
@@ -408,35 +490,47 @@ public partial class PreviewView : UserControl, IDisposable
     // offscreen print WebView is already disposed after each export — see #1.)
     public void Dispose()
     {
+        try { if (_lastTempFile != null) File.Delete(_lastTempFile); } catch { }
+        _lastTempFile = null;
         try { WebView.Dispose(); } catch { }
         foreach (System.Windows.UIElement child in PrintHost.Children)
             try { (child as Microsoft.Web.WebView2.Wpf.WebView2)?.Dispose(); } catch { }
     }
 
-    // A user-initiated navigation would leave the rendered document (external
-    // site, relative file, missing anchor, …) and the WebView would show an
-    // error/warning page, destroying the preview. Cancel it and explain instead.
-    private void OnPreviewNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
+// A user-initiated navigation away from the preview document (external site,
+// relative file, …) would show an error/warning page and destroy the preview.
+// Navigations that stay on the current document are handled by
+// PreviewNavigationPolicy: fragment jumps (#anchor) are allowed, self-reloads
+// are cancelled quietly (the page is a temp file that may already be gone).
+private void OnPreviewNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
         if (!e.IsUserInitiated)
             return;
 
+        // Our own render navigation: WebView2 sometimes reports host-initiated
+        // Navigate() as user-initiated (observed on the first navigation after
+        // startup), and Source is still the previous page during this event,
+        // so the policy would misclassify it as external and block the render.
+        if (_programmaticNavigationUri != null &&
+            string.Equals(e.Uri, _programmaticNavigationUri, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+        _programmaticNavigationUri = null;
+
+        var kind = PreviewNavigationPolicy.Classify(e.Uri, WebView.CoreWebView2.Source);
+        if (kind == PreviewNavigationKind.InPageFragment)
+            return;
+        if (kind == PreviewNavigationKind.SelfReload)
+        {
+            e.Cancel = true;
+            return;
+        }
+
         e.Cancel = true;
-
         var uri = e.Uri ?? string.Empty;
-        var hashIndex = uri.IndexOf('#');
-        // The preview document is loaded via NavigateToString (about:blank) but
-        // carries <base href="https://mdlocal/">, so an in-page anchor resolves
-        // to either form. Anything else (external site, relative file, …) is a
-        // real navigation away from the rendered document.
-        var isFragmentJump = hashIndex >= 0 &&
-            (hashIndex == 0 || uri[..hashIndex] is "about:blank" or "https://mdlocal/");
-
-        var message = isFragmentJump
-            ? $"The anchor '#{Uri.UnescapeDataString(uri[(hashIndex + 1)..])}' does not exist on this page."
-            : $"This link cannot be followed inside the preview:\n\n{uri}\n\nOnly in-page anchor links (#heading) are allowed here.";
-
-        ThemedMessageBox.Show(Application.Current.MainWindow, message,
+        ThemedMessageBox.Show(Application.Current.MainWindow,
+            $"This link cannot be followed inside the preview:\n\n{uri}\n\nOnly in-page anchor links (#heading) are allowed here.",
             "Link not allowed", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 

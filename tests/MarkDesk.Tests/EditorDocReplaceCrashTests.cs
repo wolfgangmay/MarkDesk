@@ -10,6 +10,7 @@ using MarkDesk.Controls;
 
 namespace MarkDesk.Tests;
 
+[Collection("WpfApp")]
 public class EditorDocReplaceCrashTests
 {
     private static string BuildHugeText(int lines)
@@ -58,7 +59,7 @@ public class EditorDocReplaceCrashTests
         {
             try
             {
-                var app = new Application();
+                var app = PdfNavigationTests.SharedApp;
                 var field = typeof(Application).GetField("_resourceAssembly", BindingFlags.Static | BindingFlags.NonPublic);
                 field!.SetValue(app, typeof(MarkdownEditor).Assembly);
                 var win = new Window { Width = 1200, Height = 800 };
@@ -78,13 +79,13 @@ public class EditorDocReplaceCrashTests
                 Console.WriteLine("phase2 (small) ok");
 
                 win.Close();
-                app.Shutdown();
             }
             catch (Exception ex) { failure = ex; }
         });
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
-        thread.Join();
+        if (!thread.Join(TimeSpan.FromMinutes(3)))
+            throw new Xunit.Sdk.XunitException("FullWindow test timed out after 3 minutes");
         if (failure != null)
             throw new Xunit.Sdk.XunitException(failure.ToString());
     }

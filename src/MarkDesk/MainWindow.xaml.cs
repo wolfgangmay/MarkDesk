@@ -689,8 +689,16 @@ public partial class MainWindow : Window
     private void Save_Executed(object sender, ExecutedRoutedEventArgs e) { _fileWatcher.NotifySelfSave(); ViewModel.SaveCommand.Execute(null); }
     private void SaveAs_Executed(object sender, ExecutedRoutedEventArgs e) { _fileWatcher.NotifySelfSave(); ViewModel.SaveAsCommand.Execute(null); }
 
+    private bool _isExportingPdf;
+
     private async void ExportPdf_Executed(object sender, ExecutedRoutedEventArgs e)
     {
+        if (_isExportingPdf)
+        {
+            _dialogService.Warn("A PDF export is already in progress.", "Export");
+            return;
+        }
+
         if (ViewModel.DocumentTier == DocumentTier.Large &&
             ViewModel.DocumentBytes > DocumentTierResolver.PdfExportLimitBytes)
         {
@@ -700,25 +708,46 @@ public partial class MainWindow : Window
             return;
         }
 
+        // Multi-MB documents take minutes to print; ask before committing the
+        // user to the wait (and the machine to several minutes of Chromium).
+        if (ViewModel.DocumentBytes > DocumentTierResolver.PdfConfirmThresholdBytes &&
+            !_dialogService.AskConfirm(
+                $"This document is large ({ViewModel.DocumentBytes / (1024.0 * 1024):0.#} MB).\n\n" +
+                "Exporting to PDF can take several minutes. Continue?",
+                "Export PDF"))
+            return;
+
         var path = _dialogService.PickSavePdfFile(ViewModel.FilePath);
         if (path == null)
             return;
 
         PreviewStatus.Text = "Exporting PDF…";
+        ViewModel.OpenProgressText = "Exporting PDF…";
+        _isExportingPdf = true;
         try
         {
             // HTML generation runs off the UI thread; at 5–20 MB it takes
             // seconds to minutes, so the window must stay responsive.
             var html = await Task.Run(() => ViewModel.BuildPdfDocument());
-            var ok = await Preview.PrintToPdfAsync(html, ViewModel.DocumentFolder, path, ViewModel.PdfPageSize, ViewModel.PdfMargins);
-            PreviewStatus.Text = ok ? "PDF exported ✓" : "PDF export failed";
-            if (!ok)
-                _dialogService.Warn("PDF export failed.", "Export");
+            if (!IsLoaded)
+                return; // window closed while rendering; nothing to print
+            PreviewStatus.Text = "Printing PDF…";
+            ViewModel.OpenProgressText = "Printing PDF…";
+            await Preview.PrintToPdfAsync(html, ViewModel.DocumentFolder, path, ViewModel.PdfPageSize, ViewModel.PdfMargins);
+            PreviewStatus.Text = "PDF exported ✓";
         }
         catch (Exception ex)
         {
-            PreviewStatus.Text = "PDF error";
-            _dialogService.Warn("PDF export failed:\n" + ex.Message, "Export");
+            PreviewStatus.Text = "PDF export failed";
+            var detail = ex is System.Runtime.InteropServices.COMException com
+                ? $"0x{com.HResult:X8}"
+                : ex.GetType().Name;
+            _dialogService.Warn($"PDF export failed: {ex.Message}\n({detail})", "Export");
+        }
+        finally
+        {
+            _isExportingPdf = false;
+            ViewModel.OpenProgressText = null;
         }
     }
 

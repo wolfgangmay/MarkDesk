@@ -26,6 +26,14 @@ public static class DocumentTierResolver
     /// <summary>PDF export is refused above this (measured: 20 MB renders 120 s / +294 MB).</summary>
     public const long PdfExportLimitBytes = 20L * 1024 * 1024;
 
+    /// <summary>
+    /// Above this size the export asks first: multi-MB documents take
+    /// minutes to print and block one offscreen Chromium instance. Calibrated
+    /// against measurements — a 1 MB document prints in a couple of seconds
+    /// (not worth a dialog); a 6 MB document takes 5–6 minutes.
+    /// </summary>
+    public const long PdfConfirmThresholdBytes = 3L * 1024 * 1024;
+
     public static DocumentTier ForBytes(long bytes) =>
         bytes <= RealTimeThresholdBytes ? DocumentTier.RealTime
         : bytes <= LargeThresholdBytes ? DocumentTier.Medium
