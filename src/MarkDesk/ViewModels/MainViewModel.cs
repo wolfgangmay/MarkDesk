@@ -129,6 +129,10 @@ public partial class MainViewModel : ObservableObject
         return _previewTemplate.Build(body, IsPreviewDark);
     }
 
+    /// <summary>Heading outline parsed with the same pipeline as the preview.</summary>
+    public IReadOnlyList<OutlineItem> BuildOutline() =>
+        OutlineParser.Extract(_markdownRenderer.Parse(DocumentText));
+
     // PDF export always uses light theme regardless of the app's current theme,
     // so the printed document is consistently readable on paper.
     public string BuildPdfDocument()

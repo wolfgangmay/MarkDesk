@@ -231,6 +231,9 @@
                                   IsChecked="{Binding WordWrap, ElementName=Editor, Mode=TwoWay}"
                                   ToolTip="Toggle line wrapping" />
 
+                    <ToggleButton x:Name="OutlineToggle" Style="{StaticResource SegmentToggle}" Content="Outline"
+                                  Click="OutlineToggle_Click" ToolTip="Toggle outline panel (F7)" />
+
                     <Rectangle Width="1" Height="22" Fill="{DynamicResource DividerBrush}" Margin="10,0" />
 
                     <Button Style="{StaticResource IconButton}" Content="&#xE713;" Click="Settings_Click"
@@ -283,16 +286,23 @@
 
             <Grid x:Name="SplitGrid" Grid.Row="1">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="OutlineCol" Width="220" MinWidth="160" MaxWidth="480" />
+                    <ColumnDefinition x:Name="OutlineSplitterCol" Width="Auto" />
                     <ColumnDefinition x:Name="EditorCol" Width="*" />
                     <ColumnDefinition x:Name="SplitterCol" Width="Auto" />
                     <ColumnDefinition x:Name="PreviewCol" Width="*" />
                 </Grid.ColumnDefinitions>
-                <controls:MarkdownEditor x:Name="Editor" Grid.Column="0"
+                <controls:OutlinePanel x:Name="Outline" Grid.Column="0" />
+                <GridSplitter x:Name="OutlineSplitter" Grid.Column="1" Width="6"
+                              HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                              ResizeBehavior="PreviousAndNext" Background="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}"
+                              ShowsPreview="False" />
+                <controls:MarkdownEditor x:Name="Editor" Grid.Column="2"
                                          DocumentText="{Binding DocumentText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <GridSplitter x:Name="Splitter" Grid.Column="1" Width="6"
+                <GridSplitter x:Name="Splitter" Grid.Column="3" Width="6"
                               HorizontalAlignment="Center" VerticalAlignment="Stretch"
                               ResizeBehavior="PreviousAndNext" Background="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}" />
-                <controls:PreviewView x:Name="Preview" Grid.Column="2" />
+                <controls:PreviewView x:Name="Preview" Grid.Column="4" />
             </Grid>
         </Grid>
     </DockPanel>

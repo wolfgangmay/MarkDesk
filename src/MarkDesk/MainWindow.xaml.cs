@@ -32,12 +32,14 @@ public partial class MainWindow : Window
     };
 
     private readonly DispatcherTimer _debounceTimer;
+    private readonly DispatcherTimer _outlineTimer;
     private readonly IDialogService _dialogService;
     private readonly IImagePasterService _imagePaster;
     private readonly FileWatcher _fileWatcher;
 
     private bool _previewVisible;
     private bool _tabbedShowPreview;
+    private bool _outlineWanted = true;
 
     public MainViewModel ViewModel { get; }
 
@@ -56,6 +58,9 @@ public partial class MainWindow : Window
         };
         _debounceTimer.Tick += (_, _) => { _debounceTimer.Stop(); RenderNow(); };
 
+        _outlineTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(300) };
+        _outlineTimer.Tick += (_, _) => { _outlineTimer.Stop(); UpdateOutline(); };
+
         ViewModel.PropertyChanged += OnViewModelPropertyChanged;
         SizeChanged += (_, _) => ApplyLayout();
         Loaded += (_, _) =>
@@ -64,6 +69,12 @@ public partial class MainWindow : Window
             ApplyLayout();
             Editor.SetFontSize(ViewModel.EditorFontSize);
             Editor.TypingAssistsEnabled = ViewModel.TypingAssists;
+            var s = App.Services.GetRequiredService<Services.ISettingsService>().Current;
+            _outlineWanted = s.OutlineVisible;
+            OutlineToggle.IsChecked = _outlineWanted;
+            OutlineCol.Width = new GridLength(Math.Clamp(s.OutlineWidthPx, 160, 480));
+            ApplyLayout();
+            UpdateOutline();
             _fileWatcher.Watch(ViewModel.FilePath);
             PopulateRecent();
             UpdateZoomLabel();
@@ -77,7 +88,11 @@ public partial class MainWindow : Window
         {
             ViewModel.CaretLine = Editor.CaretLine;
             ViewModel.CaretColumn = Editor.CaretColumn;
+            if (Outline.Visibility == Visibility.Visible)
+                Outline.HighlightLine(Editor.CaretLine);
         };
+        Outline.HeadingClicked += OnOutlineHeadingClicked;
+        OutlineSplitter.DragCompleted += OutlineSplitter_DragCompleted;
         _fileWatcher.ExternalChanged += (_, _) => Dispatcher.BeginInvoke(OnExternalChange);
         Closing += OnClosing;
     }
@@ -113,10 +128,15 @@ public partial class MainWindow : Window
             ApplyLayout();
         else if (e.PropertyName == nameof(ViewModel.IsPreviewDark))
             ApplyTheme(ViewModel.IsPreviewDark);
-        else if (e.PropertyName == nameof(ViewModel.DocumentText) && _previewVisible)
+        else if (e.PropertyName == nameof(ViewModel.DocumentText))
         {
-            _debounceTimer.Stop();
-            _debounceTimer.Start();
+            if (_previewVisible)
+            {
+                _debounceTimer.Stop();
+                _debounceTimer.Start();
+            }
+            _outlineTimer.Stop();
+            _outlineTimer.Start();
         }
         else if (e.PropertyName == nameof(ViewModel.FilePath))
             _fileWatcher.Watch(ViewModel.FilePath);
@@ -309,6 +329,62 @@ public partial class MainWindow : Window
         Splitter.Visibility = both ? Visibility.Visible : Visibility.Collapsed;
         Editor.Visibility = showEditor ? Visibility.Visible : Visibility.Collapsed;
         Preview.Visibility = Visibility.Visible;
+
+        // The outline is a navigation aid for the editor: shown in Edit and
+        // Split modes, forced off in Preview-only (nothing to jump to).
+        var showOutline = _outlineWanted && showEditor;
+        OutlineCol.Width = showOutline
+            ? new GridLength(Math.Clamp(OutlineCol.Width.Value, 160, 480))
+            : zero;
+        OutlineSplitterCol.Width = showOutline ? GridLength.Auto : zero;
+        OutlineSplitter.Visibility = showOutline ? Visibility.Visible : Visibility.Collapsed;
+        Outline.Visibility = showOutline ? Visibility.Visible : Visibility.Collapsed;
+        OutlineToggle.IsEnabled = showEditor;
+    }
+
+    private void UpdateOutline()
+    {
+        Outline.SetHeadings(ViewModel.BuildOutline());
+        Outline.HighlightLine(Editor.CaretLine);
+    }
+
+    private void OutlineToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _outlineWanted = OutlineToggle.IsChecked == true;
+        ApplyLayout();
+        PersistOutlineLayout();
+    }
+
+    private void ToggleOutline()
+    {
+        _outlineWanted = !_outlineWanted;
+        OutlineToggle.IsChecked = _outlineWanted;
+        ApplyLayout();
+        PersistOutlineLayout();
+    }
+
+    private void PersistOutlineLayout()
+    {
+        var s = App.Services.GetRequiredService<Services.ISettingsService>().Current;
+        s.OutlineVisible = _outlineWanted;
+        s.OutlineWidthPx = (int)Math.Clamp(OutlineCol.Width.Value, 160, 480);
+        App.Services.GetRequiredService<Services.SettingsService>().Save();
+    }
+
+    private void OutlineSplitter_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e) =>
+        PersistOutlineLayout();
+
+    private void OnOutlineHeadingClicked(int line)
+    {
+        // In narrow split (tabbed) with the preview tab active, flip back to
+        // the editor so the jump is visible.
+        if (ComputeState() == LayoutState.SplitTabbed && _tabbedShowPreview)
+        {
+            _tabbedShowPreview = false;
+            ApplyLayout();
+        }
+        Editor.ScrollToLine(line);
+        Editor.FocusEditor();
     }
 
     private LayoutState ComputeState()
@@ -357,6 +433,12 @@ public partial class MainWindow : Window
             e.Handled = true;
             Preview.ResetZoom();
             UpdateZoomLabel();
+            return;
+        }
+        if (e.Key == Key.F7 && Keyboard.Modifiers == ModifierKeys.None && OutlineToggle.IsEnabled)
+        {
+            e.Handled = true;
+            ToggleOutline();
             return;
         }
         if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control && Clipboard.ContainsImage())

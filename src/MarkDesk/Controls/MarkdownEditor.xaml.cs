@@ -298,6 +298,8 @@ public partial class MarkdownEditor : UserControl
 
     public void FocusEditor() => Editor.Focus();
 
+    public void ScrollToLine(int line) => Editor.ScrollToLine(line);
+
     public void InsertAtCaret(string text)
     {
         var offset = Editor.TextArea.Caret.Offset;

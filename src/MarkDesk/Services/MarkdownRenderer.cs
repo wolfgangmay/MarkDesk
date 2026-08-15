@@ -1,5 +1,6 @@
 using Markdig;
 using Markdig.Extensions.AutoIdentifiers;
+using Markdig.Syntax;
 
 namespace MarkDesk.Services;
 
@@ -21,4 +22,11 @@ public sealed class MarkdownRenderer : IMarkdownRenderer
 
     public string RenderToHtml(string markdown) =>
         Markdown.ToHtml(markdown ?? string.Empty, Pipeline);
+
+    /// <summary>
+    /// Parses with the same pipeline as the preview so structural views
+    /// (outline, reverse sync) never disagree with the rendered document.
+    /// </summary>
+    public MarkdownDocument Parse(string markdown) =>
+        Markdown.Parse(markdown ?? string.Empty, Pipeline);
 }
