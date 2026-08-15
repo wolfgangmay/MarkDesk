@@ -38,17 +38,48 @@ public class MarkdownRendererTests : VerifyBase
 
     [Fact]
     public void Heading_GeneratesGitHubId()
-        => Assert.Contains("<h2 id=\"my-title\">", _renderer.RenderToHtml("## My Title"));
+    {
+        var html = _renderer.RenderToHtml("## My Title");
+        Assert.Contains("<h2 ", html);
+        Assert.Contains("id=\"my-title\"", html);
+    }
+
+    [Fact]
+    public void Blocks_CarryOneBasedSourceLine()
+    {
+        var html = _renderer.RenderToHtml("first para\n\nsecond para\n");
+
+        Assert.Contains("data-line=\"1\"", html);
+        Assert.Contains("data-line=\"3\"", html);
+    }
+
+    [Fact]
+    public void FencedCode_CarriesOpeningLine()
+    {
+        var html = _renderer.RenderToHtml("text\n\n```csharp\ncode\n```\n");
+
+        Assert.Contains("data-line=\"3\"", html);
+    }
+
+    [Fact]
+    public void Heading_CarriesLineAlongsideAutoId()
+    {
+        var html = _renderer.RenderToHtml("# Title\n");
+
+        Assert.Contains("<h1 ", html);
+        Assert.Contains("id=\"title\"", html);
+        Assert.Contains("data-line=\"1\"", html);
+    }
 
     [Fact]
     public void CustomContainer_RendersClassName()
-        => Assert.Contains("<div class=\"warning\">", _renderer.RenderToHtml(":::warning\ncareful\n:::"));
+        => Assert.Contains("class=\"warning\"", _renderer.RenderToHtml(":::warning\ncareful\n:::"));
 
     [Fact]
     public void GitHubAlert_EmitsBlockquoteWithMarker()
     {
         var html = _renderer.RenderToHtml("> [!NOTE]\n> useful info");
-        Assert.Contains("<blockquote>", html);
+        Assert.Contains("blockquote", html);
         Assert.Contains("[!NOTE]", html);
     }
 

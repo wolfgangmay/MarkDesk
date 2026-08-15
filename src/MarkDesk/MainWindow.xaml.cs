@@ -93,6 +93,7 @@ public partial class MainWindow : Window
         };
         Outline.HeadingClicked += OnOutlineHeadingClicked;
         OutlineSplitter.DragCompleted += OutlineSplitter_DragCompleted;
+        Preview.SourceLineRequested += OnPreviewSourceLineRequested;
         _fileWatcher.ExternalChanged += (_, _) => Dispatcher.BeginInvoke(OnExternalChange);
         Closing += OnClosing;
     }
@@ -385,6 +386,16 @@ public partial class MainWindow : Window
         }
         Editor.ScrollToLine(line);
         Editor.FocusEditor();
+    }
+
+    // Reverse sync: clicking a rendered block scrolls the editor to the
+    // source line. Gated by the same ScrollSync setting as forward sync —
+    // one mental model: the panes are linked or they are not.
+    private void OnPreviewSourceLineRequested(int line)
+    {
+        if (!ViewModel.ScrollSync)
+            return;
+        Editor.ScrollToLine(line);
     }
 
     private LayoutState ComputeState()

@@ -1,2 +1,2 @@
-﻿<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>
-<p>&lt;b&gt;not raw&lt;/b&gt;</p>
+﻿<p data-line="1">&lt;script&gt;alert(1)&lt;/script&gt;</p>
+<p data-line="3">&lt;b&gt;not raw&lt;/b&gt;</p>

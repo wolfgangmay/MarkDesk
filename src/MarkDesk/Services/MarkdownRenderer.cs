@@ -1,5 +1,7 @@
+using System.Globalization;
 using Markdig;
 using Markdig.Extensions.AutoIdentifiers;
+using Markdig.Renderers.Html;
 using Markdig.Syntax;
 
 namespace MarkDesk.Services;
@@ -21,12 +23,29 @@ public sealed class MarkdownRenderer : IMarkdownRenderer
         .Build();
 
     public string RenderToHtml(string markdown) =>
-        Markdown.ToHtml(markdown ?? string.Empty, Pipeline);
+        RenderWithSourceLines(markdown ?? string.Empty);
 
-    /// <summary>
-    /// Parses with the same pipeline as the preview so structural views
-    /// (outline, reverse sync) never disagree with the rendered document.
-    /// </summary>
+    /// <summary>Syntax tree parsed with the same pipeline as the preview.</summary>
     public MarkdownDocument Parse(string markdown) =>
         Markdown.Parse(markdown ?? string.Empty, Pipeline);
+
+    /// <summary>
+    /// Renders HTML where every block carries its 1-based source line as a
+    /// `data-line` attribute — the preview's reverse-sync (click a rendered
+    /// block to jump to its source) resolves clicks against it. Uses the
+    /// public attribute mechanism, so core block renderers emit it natively.
+    /// </summary>
+    private static string RenderWithSourceLines(string markdown)
+    {
+        var document = Markdown.Parse(markdown, Pipeline);
+        foreach (var block in document.Descendants<Block>())
+        {
+            var attrs = block.GetAttributes();
+            attrs.Properties ??= new List<KeyValuePair<string, string?>>();
+            if (!attrs.Properties.Any(p => p.Key == "data-line"))
+                attrs.Properties.Add(new KeyValuePair<string, string?>("data-line",
+                    (block.Line + 1).ToString(CultureInfo.InvariantCulture)));
+        }
+        return document.ToHtml(Pipeline);
+    }
 }

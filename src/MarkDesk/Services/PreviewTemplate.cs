@@ -117,6 +117,15 @@ pre {{ white-space:pre-wrap; word-break:break-word; }}
     }}, true);
   }})();
   (function(){{
+    document.addEventListener('click', function(e){{
+      var a = e.target.closest && e.target.closest('a');
+      if (a) return; // links have their own handling
+      var el = e.target.closest && e.target.closest('[data-line]');
+      if (el && window.chrome && window.chrome.webview)
+        window.chrome.webview.postMessage({{type:'mdline', line: parseInt(el.getAttribute('data-line'),10)||0}});
+    }});
+  }})();
+  (function(){{
     var map = {{NOTE:'note',TIP:'tip',IMPORTANT:'important',WARNING:'warning',CAUTION:'caution'}};
     document.querySelectorAll('blockquote').forEach(function(bq){{
       var p = bq.querySelector('p');

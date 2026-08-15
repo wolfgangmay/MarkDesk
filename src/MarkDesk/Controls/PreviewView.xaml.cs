@@ -27,6 +27,9 @@ public partial class PreviewView : UserControl, IDisposable
     public double PreviewZoom => _previewZoom;
     public event EventHandler? ZoomChanged;
 
+    /// <summary>Raised when the user clicks a rendered block (reverse sync). 1-based line.</summary>
+    public event Action<int>? SourceLineRequested;
+
     private static string AssetsFolder =>
         Path.Combine(AppContext.BaseDirectory, "Assets", "web");
 
@@ -173,6 +176,7 @@ public partial class PreviewView : UserControl, IDisposable
 
             WebView.CoreWebView2.NavigationStarting += OnPreviewNavigationStarting;
             WebView.CoreWebView2.NewWindowRequested += OnNewWindowRequested;
+            WebView.CoreWebView2.WebMessageReceived += OnWebMessageReceived;
 
             _initialized = true;
             LoadingHint.Visibility = Visibility.Collapsed;
@@ -411,5 +415,23 @@ public partial class PreviewView : UserControl, IDisposable
         ThemedMessageBox.Show(Application.Current.MainWindow,
             $"This link cannot be followed inside the preview:\n\n{e.Uri}",
             "Link not allowed", MessageBoxButton.OK, MessageBoxImage.Warning);
+    }
+
+    // Reverse sync: the preview template posts {type:'mdline', line:n} when a
+    // rendered block is clicked; forward it as a typed event.
+    private void OnWebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        try
+        {
+            using var json = System.Text.Json.JsonDocument.Parse(e.WebMessageAsJson);
+            if (json.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                json.RootElement.TryGetProperty("type", out var type) && type.GetString() == "mdline" &&
+                json.RootElement.TryGetProperty("line", out var line) && line.TryGetInt32(out var value) && value > 0)
+                SourceLineRequested?.Invoke(value);
+        }
+        catch
+        {
+            // Foreign messages are ignored.
+        }
     }
 }
