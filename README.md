@@ -2,7 +2,7 @@
 
 A lightweight Markdown viewer and editor for Windows. Open a `.md` file, read it, edit it, save it, export to PDF — nothing more, nothing less.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.1-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Downloads](https://img.shields.io/github/downloads/wolfgangmay/MarkDesk/total)
