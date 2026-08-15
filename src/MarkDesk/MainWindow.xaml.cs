@@ -366,10 +366,11 @@ public partial class MainWindow : Window
 
     private void PersistOutlineLayout()
     {
-        var s = App.Services.GetRequiredService<Services.ISettingsService>().Current;
+        var settings = App.Services.GetRequiredService<Services.ISettingsService>();
+        var s = settings.Current;
         s.OutlineVisible = _outlineWanted;
         s.OutlineWidthPx = (int)Math.Clamp(OutlineCol.Width.Value, 160, 480);
-        App.Services.GetRequiredService<Services.SettingsService>().Save();
+        settings.Save();
     }
 
     private void OutlineSplitter_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e) =>
