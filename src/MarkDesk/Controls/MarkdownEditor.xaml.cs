@@ -52,11 +52,113 @@ public partial class MarkdownEditor : UserControl
         Editor.TextArea.Caret.PositionChanged += (_, _) => CaretPositionChanged?.Invoke(this, EventArgs.Empty);
         Editor.PreviewMouseWheel += OnEditorPreviewMouseWheel;
         Editor.TextArea.PreviewKeyDown += OnTextAreaPreviewKeyDown;
+        Editor.TextArea.TextEntering += OnTextAreaTextEntering;
         Loaded += OnLoaded;
+    }
+
+    private void OnTextAreaTextEntering(object? sender, TextCompositionEventArgs e)
+    {
+        if (!TypingAssistsEnabled || string.IsNullOrEmpty(e.Text))
+            return;
+        var c = e.Text[0];
+
+        // Typing the closing char just before an auto-inserted one skips
+        // over it instead of doubling it.
+        if (Editor.SelectionLength == 0 && c is ']' or ')' or '`' &&
+            Editor.CaretOffset < Editor.Document.TextLength &&
+            Editor.Document.GetCharAt(Editor.CaretOffset) == c)
+        {
+            Editor.TextArea.Caret.Offset += 1;
+            e.Handled = true;
+            return;
+        }
+
+        // Wrapping an existing selection: ` * _ ~ [ (
+        if (Editor.SelectionLength > 0 && c is '`' or '*' or '_' or '~' or '[' or '(')
+        {
+            var open = c is '[' or '(' ? c.ToString() : e.Text;
+            var close = c switch { '[' => "]", '(' => ")", _ => e.Text };
+            var selected = Editor.SelectedText;
+            var start = Editor.SelectionStart;
+            Editor.Document.Replace(start, Editor.SelectionLength, open + selected + close);
+            Editor.Select(start + open.Length, selected.Length);
+            e.Handled = true;
+            return;
+        }
+
+        // Bare pair completion for ` [ (
+        if (Editor.SelectionLength == 0 && MarkdownWrapping.IsPairedChar(c))
+        {
+            var offset = Editor.CaretOffset;
+            Editor.Document.Insert(offset, e.Text + MarkdownWrapping.ClosingFor(c));
+            Editor.TextArea.Caret.Offset = offset + 1;
+            e.Handled = true;
+        }
+    }
+
+    private void ToggleWrap(string token)
+    {
+        if (Editor.SelectionLength > 0)
+        {
+            var start = Editor.SelectionStart;
+            var replaced = MarkdownWrapping.Toggle(Editor.SelectedText, token);
+            Editor.Document.Replace(start, Editor.SelectionLength, replaced);
+            Editor.Select(start, replaced.Length);
+        }
+        else
+        {
+            var offset = Editor.CaretOffset;
+            Editor.Document.Insert(offset, token + token);
+            Editor.TextArea.Caret.Offset = offset + token.Length;
+        }
+    }
+
+    private void ToggleLink()
+    {
+        if (Editor.SelectionLength > 0)
+        {
+            var start = Editor.SelectionStart;
+            var replaced = MarkdownWrapping.ToggleLink(Editor.SelectedText);
+            if (replaced == null)
+                return;
+            Editor.Document.Replace(start, Editor.SelectionLength, replaced);
+            if (replaced.EndsWith("()", StringComparison.Ordinal))
+                Editor.TextArea.Caret.Offset = start + replaced.Length - 1; // type the URL
+            else
+                Editor.Select(start, replaced.Length);
+        }
+        else
+        {
+            var offset = Editor.CaretOffset;
+            Editor.Document.Insert(offset, "[]()");
+            Editor.TextArea.Caret.Offset = offset + 1;
+        }
     }
 
     private void OnTextAreaPreviewKeyDown(object? sender, KeyEventArgs e)
     {
+        if (TypingAssistsEnabled && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            if (e.Key == Key.B)
+            {
+                ToggleWrap("**");
+                e.Handled = true;
+                return;
+            }
+            if (e.Key == Key.I)
+            {
+                ToggleWrap("*");
+                e.Handled = true;
+                return;
+            }
+            if (e.Key == Key.K)
+            {
+                ToggleLink();
+                e.Handled = true;
+                return;
+            }
+        }
+
         if (e.Key != Key.Enter || Keyboard.Modifiers != ModifierKeys.None)
             return;
         if (!TypingAssistsEnabled)
