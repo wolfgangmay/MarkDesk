@@ -33,7 +33,7 @@ public sealed class PreviewTemplate
   --code-bg:#f6f8fa; --link:#0969da; --quote:#6e7781; --quote-border:#d0d7de;
 }}
 html[data-theme=""dark""] {{
-  --fg:#e6edf3; --bg:#0d1117; --border:#30363d; --muted:#8b949e;
+  --fg:#e6edf3; --bg:#1e1e1e; --border:#30363d; --muted:#8b949e;
   --code-bg:#161b22; --link:#58a6ff; --quote:#8b949e; --quote-border:#30363d;
 }}
 * {{ box-sizing:border-box; }}
