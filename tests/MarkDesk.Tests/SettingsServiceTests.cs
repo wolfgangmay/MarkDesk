@@ -21,6 +21,24 @@ public class SettingsServiceTests
         Assert.True(settings.ScrollSync);
         Assert.Equal(150, settings.RenderDebounceMs);
         Assert.Equal(PdfPageSize.A4, settings.PdfPageSize);
+        Assert.Equal(PdfMargins.Default, settings.PdfMargins);
+    }
+
+    [Fact]
+    public void PdfMargins_ClampsToSupportedRange()
+    {
+        var tooSmall = new PdfMargins(0, 1, 2, 4).Clamped();
+        Assert.Equal(new PdfMargins(5, 5, 5, 5), tooSmall);
+
+        var tooLarge = new PdfMargins(41, 100, 40, 39).Clamped();
+        Assert.Equal(new PdfMargins(40, 40, 40, 39), tooLarge);
+    }
+
+    [Fact]
+    public void PdfMargins_ConvertsMmToInches()
+    {
+        Assert.Equal(18 / 25.4, PdfMargins.MmToInches(18), precision: 10);
+        Assert.Equal(5.0, PdfMargins.MmToInches(127), precision: 10);
     }
 
     [Fact]
@@ -51,11 +69,16 @@ public class SettingsServiceTests
             var first = new SettingsService(dir);
             first.Current.LayoutThresholdPx = 1200;
             first.Current.DefaultViewMode = ViewMode.Edit;
+            first.Current.PdfMarginTopMm = 12;
+            first.Current.PdfMarginBottomMm = 14;
+            first.Current.PdfMarginLeftMm = 16;
+            first.Current.PdfMarginRightMm = 10;
             first.Save();
 
             var reloaded = new SettingsService(dir);
             Assert.Equal(1200, reloaded.Current.LayoutThresholdPx);
             Assert.Equal(ViewMode.Edit, reloaded.Current.DefaultViewMode);
+            Assert.Equal(new PdfMargins(12, 14, 16, 10), reloaded.Current.PdfMargins);
         }
         finally
         {

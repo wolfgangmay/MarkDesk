@@ -81,11 +81,18 @@ div.warning > :last-child,div.danger > :last-child,div.note > :last-child,div.in
 .markdown-alert-caution {{ border-left-color:#cf222e; background:#cf222e14; }} .markdown-alert-caution .markdown-alert-title {{ color:#cf222e; }}
 </style>
 <style media=""print"">
-@page {{ size:A4; margin:18mm; }}
-body {{ max-width:none; color:#000; background:#fff; }}
-pre,blockquote {{ page-break-inside:avoid; }}
+/* Page geometry (size + margins) comes exclusively from the WebView2 print
+   settings (see PreviewView.ApplyPrintLayout) — no page CSS here. */
+body {{ max-width:none; padding:0; color:#000; background:#fff; }}
+p,li,dd,dt {{ orphans:3; widows:3; }}
+h1,h2,h3,h4,h5,h6 {{ break-after:avoid; }}
+tr {{ break-inside:avoid; }}
+table {{ display:table; overflow:visible; font-size:.85em; }}
+img {{ max-height:23cm; object-fit:contain; }}
 pre {{ white-space:pre-wrap; word-break:break-word; }}
-h1,h2,h3 {{ page-break-after:avoid; }}
+/* Small cohesive units stay together; the print-layout script tags short
+   blocks (<= ~30% page height) with .md-keep so only cheap moves happen. */
+.md-keep,.markdown-alert,.katex-display,.mermaid,div.warning,div.danger,div.note,div.info,div.tip,div.success {{ break-inside:avoid; }}
 </style>
 </head>
 <body>
@@ -95,6 +102,7 @@ h1,h2,h3 {{ page-break-after:avoid; }}
 <script src=""{5}""></script>
 <script src=""{6}""></script>
 <script>
+  window.__mdReadyJobs = [];
   (function(){{
     var bad = /^\s*(javascript|vbscript|data):/i;
     function sanitize(root){{
@@ -164,14 +172,22 @@ h1,h2,h3 {{ page-break-after:avoid; }}
     }});
     var mNodes = document.querySelectorAll('.mermaid');
     if (mNodes.length) {{
-      mermaid.run().catch(function(err){{
+      window.__mdReadyJobs.push(mermaid.run().catch(function(err){{
         Array.prototype.forEach.call(mNodes, function(el){{
           if(!el.querySelector('svg'))
             el.innerHTML = '<pre style=""color:#c00;white-space:pre-wrap"">Mermaid error: ' + String(err && err.message || err).replace(/</g,'&lt;') + '</pre>';
         }});
-      }});
+      }}));
     }}
   }}
+  // Resolves when everything that can change layout height has settled
+  // (webfonts, images, async diagram rendering). The PDF export waits on
+  // this before measuring blocks for pagination decisions.
+  Array.prototype.forEach.call(document.images, function(img) {{
+    if (img.decode) window.__mdReadyJobs.push(img.decode().catch(function() {{}}));
+  }});
+  if (document.fonts && document.fonts.ready) window.__mdReadyJobs.push(document.fonts.ready);
+  window.__mdPrintReady = Promise.allSettled(window.__mdReadyJobs);
 </script>
 </body>
 </html>";

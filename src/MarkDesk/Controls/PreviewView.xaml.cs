@@ -62,7 +62,7 @@ public partial class PreviewView : UserControl, IDisposable
             $"window.scrollTo(0,{clamped}*(document.documentElement.scrollHeight-window.innerHeight))");
     }
 
-    public async Task<bool> PrintToPdfAsync(string html, string? documentFolder, string outputPath, PdfPageSize pageSize)
+    public async Task<bool> PrintToPdfAsync(string html, string? documentFolder, string outputPath, PdfPageSize pageSize, PdfMargins margins)
     {
         await _printLock.WaitAsync();
         Microsoft.Web.WebView2.Wpf.WebView2? printWv = null;
@@ -129,6 +129,8 @@ public partial class PreviewView : UserControl, IDisposable
             settings.ShouldPrintBackgrounds = true;
             settings.ShouldPrintHeaderAndFooter = false;
             ApplyPageSize(settings, pageSize);
+            ApplyMargins(settings, margins);
+            await ApplyPrintLayoutAsync(core, pageSize, margins);
 
             await core.PrintToPdfAsync(outputPath, settings);
             return true;
@@ -315,6 +317,55 @@ public partial class PreviewView : UserControl, IDisposable
     {
         settings.PageWidth = pageSize == PdfPageSize.Letter ? 8.5 : 8.27;
         settings.PageHeight = pageSize == PdfPageSize.Letter ? 11.0 : 11.69;
+    }
+
+    private static void ApplyMargins(CoreWebView2PrintSettings settings, PdfMargins margins)
+    {
+        settings.MarginTop = PdfMargins.MmToInches(margins.TopMm);
+        settings.MarginBottom = PdfMargins.MmToInches(margins.BottomMm);
+        settings.MarginLeft = PdfMargins.MmToInches(margins.LeftMm);
+        settings.MarginRight = PdfMargins.MmToInches(margins.RightMm);
+    }
+
+    // Even-distribution pass ("均匀灌版"): simulate the print layout at the
+    // exact content width, then tag short blocks (<= ~30% of the page content
+    // height) with .md-keep so Chromium only ever moves cheap blocks to the
+    // next page. Long blocks stay splittable, which avoids the large gaps a
+    // blanket break-inside:avoid used to leave behind. Any failure degrades
+    // silently to the pure-CSS pagination rules.
+    private static async Task ApplyPrintLayoutAsync(
+        CoreWebView2 core, PdfPageSize pageSize, PdfMargins margins)
+    {
+        try
+        {
+            var paperW = pageSize == PdfPageSize.Letter ? 215.9 : 210.0;
+            var paperH = pageSize == PdfPageSize.Letter ? 279.4 : 297.0;
+            var contentW = ((paperW - margins.LeftMm - margins.RightMm) / 25.4 * 96)
+                .ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+            var contentH = ((paperH - margins.TopMm - margins.BottomMm) / 25.4 * 96)
+                .ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+
+            var script =
+                "(async function(){" +
+                "try{ if(window.__mdPrintReady) await window.__mdPrintReady; }catch(e){}" +
+                "var b=document.body;" +
+                "var prev={w:b.style.width,m:b.style.maxWidth,p:b.style.padding};" +
+                "b.style.maxWidth='none';b.style.width='" + contentW + "px';b.style.padding='0';" +
+                "await new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r);});});" +
+                "var lim=" + contentH + "*0.30;" +
+                "document.querySelectorAll('pre,table,blockquote').forEach(function(el){" +
+                "if(el.getBoundingClientRect().height<=lim) el.classList.add('md-keep');" +
+                "else el.classList.remove('md-keep');" +
+                "});" +
+                "b.style.width=prev.w;b.style.maxWidth=prev.m;b.style.padding=prev.p;" +
+                "return 'ok';" +
+                "})()";
+            await core.ExecuteScriptAsync(script);
+        }
+        catch
+        {
+            // Degrade to pure-CSS pagination.
+        }
     }
 
     // #2 hygiene: dispose the on-screen WebView2 on shutdown so its Chromium

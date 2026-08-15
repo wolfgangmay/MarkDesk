@@ -36,4 +36,33 @@ public class PreviewTemplateTests
 
         Assert.Contains("<h1 id=\"t\">Title</h1>", html);
     }
+
+    [Fact]
+    public void Build_PrintCss_UsesPaginationRulesNotBlanketAvoid()
+    {
+        var html = _template.Build("<p>x</p>");
+
+        // Page geometry must come solely from the print settings (no @page).
+        Assert.DoesNotContain("@page", html);
+        // No blanket keep-together on long blocks (caused large gaps).
+        Assert.DoesNotContain("pre,blockquote { page-break-inside:avoid", html);
+        // Even-distribution rules present.
+        Assert.Contains("md-keep", html);
+        Assert.Contains("orphans:3", html);
+        Assert.Contains("break-after:avoid", html);
+        Assert.Contains("break-inside:avoid", html);
+        // Print body must not inherit the screen padding (it would stack on
+        // top of the page margins).
+        Assert.Contains("body { max-width:none; padding:0", html);
+    }
+
+    [Fact]
+    public void Build_ExposesPrintReadyPromise()
+    {
+        var html = _template.Build("<p>x</p>");
+
+        Assert.Contains("__mdPrintReady", html);
+        Assert.Contains("__mdReadyJobs", html);
+        Assert.Contains("mermaid.run().catch", html);
+    }
 }

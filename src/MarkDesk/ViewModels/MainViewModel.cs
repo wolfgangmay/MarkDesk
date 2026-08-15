@@ -90,6 +90,7 @@ public partial class MainViewModel : ObservableObject
     public int LayoutThresholdPx => _settingsService.Current.LayoutThresholdPx;
     public int RenderDebounceMs => _settingsService.Current.RenderDebounceMs;
     public PdfPageSize PdfPageSize => _settingsService.Current.PdfPageSize;
+    public PdfMargins PdfMargins => _settingsService.Current.PdfMargins;
     public bool ScrollSync => _settingsService.Current.ScrollSync;
     public IReadOnlyList<string> RecentFiles => _settingsService.Current.RecentFiles;
 

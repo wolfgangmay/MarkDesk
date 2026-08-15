@@ -27,6 +27,10 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _scrollSync;
     [ObservableProperty] private int _renderDebounceMs;
     [ObservableProperty] private PdfPageSize _pdfPageSize;
+    [ObservableProperty] private int _pdfMarginTopMm = PdfMargins.DefaultMm;
+    [ObservableProperty] private int _pdfMarginBottomMm = PdfMargins.DefaultMm;
+    [ObservableProperty] private int _pdfMarginLeftMm = PdfMargins.DefaultMm;
+    [ObservableProperty] private int _pdfMarginRightMm = PdfMargins.DefaultMm;
 
     public int CurrentWindowWidth { get; set; }
 
@@ -41,6 +45,10 @@ public partial class SettingsViewModel : ObservableObject
         ScrollSync = s.ScrollSync;
         RenderDebounceMs = s.RenderDebounceMs;
         PdfPageSize = s.PdfPageSize;
+        PdfMarginTopMm = s.PdfMarginTopMm;
+        PdfMarginBottomMm = s.PdfMarginBottomMm;
+        PdfMarginLeftMm = s.PdfMarginLeftMm;
+        PdfMarginRightMm = s.PdfMarginRightMm;
     }
 
     [RelayCommand]
@@ -55,6 +63,15 @@ public partial class SettingsViewModel : ObservableObject
         s.ScrollSync = ScrollSync;
         s.RenderDebounceMs = RenderDebounceMs;
         s.PdfPageSize = PdfPageSize;
+        var clamped = new PdfMargins(PdfMarginTopMm, PdfMarginBottomMm, PdfMarginLeftMm, PdfMarginRightMm).Clamped();
+        s.PdfMarginTopMm = clamped.TopMm;
+        s.PdfMarginBottomMm = clamped.BottomMm;
+        s.PdfMarginLeftMm = clamped.LeftMm;
+        s.PdfMarginRightMm = clamped.RightMm;
+        PdfMarginTopMm = clamped.TopMm;
+        PdfMarginBottomMm = clamped.BottomMm;
+        PdfMarginLeftMm = clamped.LeftMm;
+        PdfMarginRightMm = clamped.RightMm;
         _settingsService.Save();
     }
 }

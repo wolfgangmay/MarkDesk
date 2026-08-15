@@ -499,7 +499,7 @@ public partial class MainWindow : Window
         try
         {
             var html = ViewModel.BuildPdfDocument();
-            var ok = await Preview.PrintToPdfAsync(html, ViewModel.DocumentFolder, path, ViewModel.PdfPageSize);
+            var ok = await Preview.PrintToPdfAsync(html, ViewModel.DocumentFolder, path, ViewModel.PdfPageSize, ViewModel.PdfMargins);
             PreviewStatus.Text = ok ? "PDF exported ✓" : "PDF export failed";
             if (!ok)
                 _dialogService.Warn("PDF export failed.", "Export");
