@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -9,7 +10,8 @@ namespace MarkDesk.Controls;
 public partial class FindReplacePanel : UserControl
 {
     private TextEditor? _editor;
-    private int _lastFound = -1;
+    private List<(int Index, int Length)> _matches = new();
+    private int _current = -1;
 
     public FindReplacePanel()
     {
@@ -23,6 +25,8 @@ public partial class FindReplacePanel : UserControl
         Visibility = Visibility.Visible;
         var v = replace ? Visibility.Visible : Visibility.Collapsed;
         ReplaceBox.Visibility = v;
+        ReplaceHint.Visibility = v == Visibility.Visible && ReplaceBox.Text.Length == 0
+            ? Visibility.Visible : Visibility.Collapsed;
         ReplaceBtn.Visibility = v;
         ReplaceAllBtn.Visibility = v;
         FindBox.Focus();
@@ -56,7 +60,19 @@ public partial class FindReplacePanel : UserControl
 
     private void FindBox_TextChanged(object sender, TextChangedEventArgs e)
     {
-        _lastFound = -1;
+        FindHint.Visibility = FindBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+        RefreshMatches();
+        FindNext();
+    }
+
+    private void ReplaceBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        ReplaceHint.Visibility = ReplaceBox.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void Option_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshMatches();
         FindNext();
     }
 
@@ -70,56 +86,94 @@ public partial class FindReplacePanel : UserControl
         return true;
     }
 
-    private int SearchForward(int from)
+    private Regex? TryBuildRegex()
     {
-        var ed = _editor;
-        if (ed == null) return -1;
-        var term = FindBox.Text;
-        if (string.IsNullOrEmpty(term)) return -1;
-        var text = ed.Document.Text;
-        var whole = WholeWords.IsChecked == true;
-        var start = from;
-        while (true)
+        try
         {
-            var idx = start > text.Length
-                ? -1
-                : text.IndexOf(term, start, Comparison);
-            if (idx < 0 && start > 0) // wrap
-            {
-                start = 0;
-                continue;
-            }
-            if (idx < 0) return -1;
-            if (whole && !IsWholeWord(idx, term.Length))
-            {
-                start = idx + 1;
-                continue;
-            }
-            return idx;
+            var options = MatchCase.IsChecked == true ? RegexOptions.None : RegexOptions.IgnoreCase;
+            return new Regex(FindBox.Text, options);
+        }
+        catch (ArgumentException)
+        {
+            return null;
         }
     }
 
-    private void Select(int idx, int len)
+    // Rebuilds the full match list (index + length) for the current term and
+    // options. Regex matches may vary in length, hence the tuple.
+    private void RefreshMatches()
+    {
+        _matches = new List<(int, int)>();
+        _current = -1;
+        Status.Text = "";
+
+        var term = FindBox.Text;
+        if (string.IsNullOrEmpty(term) || _editor == null)
+        {
+            UpdateCount();
+            return;
+        }
+
+        var text = _editor.Document.Text;
+        if (UseRegex.IsChecked == true)
+        {
+            var rx = TryBuildRegex();
+            if (rx == null)
+            {
+                Count.Text = "Invalid regex";
+                return;
+            }
+            foreach (Match m in rx.Matches(text))
+                if (m.Length > 0)
+                    _matches.Add((m.Index, m.Length));
+        }
+        else
+        {
+            var whole = WholeWords.IsChecked == true;
+            var pos = 0;
+            while (term.Length > 0 && pos <= text.Length - term.Length)
+            {
+                var idx = text.IndexOf(term, pos, Comparison);
+                if (idx < 0) break;
+                if (!whole || IsWholeWord(idx, term.Length))
+                    _matches.Add((idx, term.Length));
+                pos = idx + 1;
+            }
+        }
+        UpdateCount();
+    }
+
+    private void UpdateCount()
+    {
+        if (string.IsNullOrEmpty(FindBox.Text)) { Count.Text = ""; return; }
+        if (UseRegex.IsChecked == true && TryBuildRegex() == null) return; // keep "Invalid regex"
+        Count.Text = _matches.Count == 0
+            ? "No results"
+            : $"{_current + 1}/{_matches.Count}";
+    }
+
+    private void SelectMatch(int i)
     {
         var ed = _editor!;
+        var (idx, len) = _matches[i];
         ed.Select(idx, len);
         ed.TextArea.Caret.Offset = idx + len;
         ed.ScrollToLine(ed.Document.GetLineByOffset(idx).LineNumber);
-        _lastFound = idx;
+        _current = i;
+        UpdateCount();
+        Status.Text = "";
     }
 
     public void FindNext()
     {
         var ed = _editor;
         if (ed == null) return;
-        var term = FindBox.Text;
-        if (string.IsNullOrEmpty(term)) { Status.Text = ""; return; }
+        if (string.IsNullOrEmpty(FindBox.Text)) return;
+        if (_matches.Count == 0) { Status.Text = "No matches"; return; }
+
         var from = ed.TextArea.Caret.Offset;
-        if (ed.SelectionStart == _lastFound && ed.SelectionLength == term.Length)
-            from = _lastFound + term.Length;
-        var idx = SearchForward(from);
-        if (idx >= 0) { Select(idx, term.Length); Status.Text = ""; }
-        else Status.Text = "No matches";
+        var i = _matches.FindIndex(m => m.Index >= from);
+        SelectMatch(i < 0 ? 0 : i);
     }
 
     private void Next_Click(object sender, RoutedEventArgs e) => FindNext();
@@ -127,53 +181,44 @@ public partial class FindReplacePanel : UserControl
     private void Prev_Click(object sender, RoutedEventArgs e)
     {
         var ed = _editor;
-        if (ed == null) return;
-        var term = FindBox.Text;
-        if (string.IsNullOrEmpty(term)) return;
-        var text = ed.Document.Text;
-        var whole = WholeWords.IsChecked == true;
-        var end = ed.SelectionStart;
-        int last = -1, s = 0;
-        while (s <= end && s < text.Length)
+        if (ed == null || _matches.Count == 0 || string.IsNullOrEmpty(FindBox.Text))
         {
-            var f = text.IndexOf(term, s, end - s, Comparison);
-            if (f < 0) break;
-            if (!whole || IsWholeWord(f, term.Length)) last = f;
-            s = f + 1;
+            if (!string.IsNullOrEmpty(FindBox.Text)) Status.Text = "No matches";
+            return;
         }
-        if (last >= 0) { Select(last, term.Length); Status.Text = ""; }
-        else Status.Text = "No matches";
+
+        var selectionStart = ed.SelectionStart;
+        var i = -1;
+        for (var k = 0; k < _matches.Count; k++)
+            if (_matches[k].Index < selectionStart)
+                i = k;
+        SelectMatch(i < 0 ? _matches.Count - 1 : i);
     }
+
+    private bool SelectionIsCurrentMatch =>
+        _current >= 0 && _current < _matches.Count &&
+        _editor!.SelectionStart == _matches[_current].Index &&
+        _editor.SelectionLength == _matches[_current].Length;
 
     private void Replace_Click(object sender, RoutedEventArgs e)
     {
         var ed = _editor;
-        if (ed == null) return;
-        var term = FindBox.Text;
+        if (ed == null || string.IsNullOrEmpty(FindBox.Text) || _matches.Count == 0) return;
         var repl = ReplaceBox.Text;
-        if (string.IsNullOrEmpty(term)) return;
 
-        var replaced = false;
-        if (ed.SelectionLength == term.Length &&
-            string.Equals(ed.SelectedText, term, Comparison))
-        {
-            ed.Document.Replace(ed.SelectionStart, ed.SelectionLength, repl);
-            replaced = true;
-        }
-        else
-        {
-            var idx = SearchForward(ed.TextArea.Caret.Offset);
-            if (idx >= 0)
-            {
-                ed.Document.Replace(idx, term.Length, repl);
-                ed.TextArea.Caret.Offset = idx + repl.Length;
-                _lastFound = -1;
-                replaced = true;
-            }
-        }
+        if (!SelectionIsCurrentMatch)
+            FindNext();
+        if (!SelectionIsCurrentMatch) return;
 
+        var (idx, len) = _matches[_current];
+        var newText = repl;
+        if (UseRegex.IsChecked == true && TryBuildRegex() is { } rx)
+            newText = rx.Replace(ed.SelectedText, repl); // supports $1.. group refs
+        ed.Document.Replace(idx, len, newText);
+        ed.TextArea.Caret.Offset = idx + newText.Length;
+        Status.Text = "Replaced";
+        RefreshMatches();
         FindNext();
-        Status.Text = replaced ? "Replaced" : Status.Text;
     }
 
     private void ReplaceAll_Click(object sender, RoutedEventArgs e)
@@ -184,34 +229,48 @@ public partial class FindReplacePanel : UserControl
         var repl = ReplaceBox.Text;
         if (string.IsNullOrEmpty(term)) return;
         var text = ed.Document.Text;
-        var whole = WholeWords.IsChecked == true;
-        var sb = new StringBuilder(text.Length);
-        int pos = 0, count = 0;
-        while (true)
+        int count;
+
+        if (UseRegex.IsChecked == true)
         {
-            if (pos > text.Length - term.Length)
-            {
-                sb.Append(text, pos, text.Length - pos);
-                break;
-            }
-            var idx = text.IndexOf(term, pos, Comparison);
-            if (idx < 0)
-            {
-                sb.Append(text, pos, text.Length - pos);
-                break;
-            }
-            sb.Append(text, pos, idx - pos);
-            if (whole && !IsWholeWord(idx, term.Length))
-            {
-                sb.Append(term);
-                pos = idx + term.Length;
-                continue;
-            }
-            sb.Append(repl);
-            pos = idx + term.Length;
-            count++;
+            if (TryBuildRegex() is not { } rx) { Status.Text = "Invalid regex"; return; }
+            count = rx.Matches(text).Count;
+            ed.Document.Text = rx.Replace(text, repl);
         }
-        ed.Document.Text = sb.ToString();
+        else
+        {
+            var whole = WholeWords.IsChecked == true;
+            var sb = new StringBuilder(text.Length);
+            int pos = 0;
+            count = 0;
+            while (true)
+            {
+                if (pos > text.Length - term.Length)
+                {
+                    sb.Append(text, pos, text.Length - pos);
+                    break;
+                }
+                var idx = text.IndexOf(term, pos, Comparison);
+                if (idx < 0)
+                {
+                    sb.Append(text, pos, text.Length - pos);
+                    break;
+                }
+                sb.Append(text, pos, idx - pos);
+                if (whole && !IsWholeWord(idx, term.Length))
+                {
+                    sb.Append(term);
+                    pos = idx + term.Length;
+                    continue;
+                }
+                sb.Append(repl);
+                pos = idx + term.Length;
+                count++;
+            }
+            ed.Document.Text = sb.ToString();
+        }
+
         Status.Text = $"{count} replaced";
+        RefreshMatches();
     }
 }

@@ -10,21 +10,74 @@
             <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
             <Setter Property="SelectionBrush" Value="{DynamicResource AccentBrush}" />
             <Setter Property="SelectionTextBrush" Value="{DynamicResource WindowBgBrush}" />
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="MinHeight" Value="30" />
         </Style>
         <Style TargetType="Button">
             <Setter Property="Background" Value="{DynamicResource ToneBgBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource ContentBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PressedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="PanelAccentButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="Foreground" Value="#FFFFFF" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <Style TargetType="ToggleButton">
             <Setter Property="Background" Value="{DynamicResource ToneBgBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource ContentBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource DividerBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1"
+                                CornerRadius="3" Padding="6,2">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </UserControl.Resources>
     <Border Background="{DynamicResource BarBgBrush}"
             BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="6"
-            Padding="10" Width="400" Margin="10,10,10,0"
+            Padding="10" Width="420" Margin="10,10,10,0"
             HorizontalAlignment="Right" VerticalAlignment="Top">
         <Border.Effect>
             <DropShadowEffect BlurRadius="10" Opacity="0.25" ShadowDepth="2" />
@@ -36,33 +89,53 @@
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <Button Grid.Row="0" HorizontalAlignment="Right" Content="&#xE711;" FontFamily="Segoe MDL2 Assets"
-                    FontSize="12" Width="24" Height="24" Margin="0,0,0,6"
+                    FontSize="10" Width="20" Height="20" Margin="0,0,0,6"
                     Background="Transparent" BorderThickness="0"
                     Foreground="{DynamicResource ContentBrush}"
                     Click="Close_Click" ToolTip="Close (Esc)" />
 
-            <TextBox Grid.Row="1" x:Name="FindBox" Margin="0,0,0,6"
-                     KeyDown="Input_KeyDown" TextChanged="FindBox_TextChanged" />
+            <Grid Grid.Row="1" Margin="0,0,0,6">
+                <TextBox x:Name="FindBox" KeyDown="Input_KeyDown" TextChanged="FindBox_TextChanged" />
+                <TextBlock x:Name="FindHint" Text="Find…" IsHitTestVisible="False"
+                           Foreground="{DynamicResource MutedBrush}"
+                           Margin="10,0,0,0" VerticalAlignment="Center" Visibility="Collapsed" />
+            </Grid>
 
-            <TextBox Grid.Row="2" x:Name="ReplaceBox" Margin="0,0,0,6" KeyDown="Input_KeyDown" />
+            <Grid Grid.Row="2" Margin="0,0,0,8">
+                <TextBox x:Name="ReplaceBox" KeyDown="Input_KeyDown" TextChanged="ReplaceBox_TextChanged" />
+                <TextBlock x:Name="ReplaceHint" Text="Replace with…" IsHitTestVisible="False"
+                           Foreground="{DynamicResource MutedBrush}"
+                           Margin="10,0,0,0" VerticalAlignment="Center" Visibility="Collapsed" />
+            </Grid>
 
-            <WrapPanel Grid.Row="3" Margin="0,0,0,4">
+            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,8">
                 <ToggleButton x:Name="MatchCase" Content="Aa" Width="34" Margin="0,0,4,0"
-                              ToolTip="Match case" />
-                <ToggleButton x:Name="WholeWords" Content="W" Width="34" Margin="0,0,8,0"
-                              ToolTip="Whole words" />
-                <Button Content="Prev" Click="Prev_Click" Margin="0,0,4,0" Padding="10,2" />
-                <Button Content="Next" Click="Next_Click" Margin="0,0,4,0" Padding="10,2" />
-                <Button x:Name="ReplaceBtn" Content="Replace" Click="Replace_Click"
-                        Margin="0,0,4,0" Padding="10,2" />
-                <Button x:Name="ReplaceAllBtn" Content="Replace All" Click="ReplaceAll_Click"
-                        Padding="10,2" />
-            </WrapPanel>
+                              ToolTip="Match case" Click="Option_Click" />
+                <ToggleButton x:Name="WholeWords" Content="W" Width="34" Margin="0,0,4,0"
+                              ToolTip="Match whole words (plain-text mode only)" Click="Option_Click" />
+                <ToggleButton x:Name="UseRegex" Content=".*" Width="34" Margin="0,0,10,0"
+                              ToolTip="Use regular expression" Click="Option_Click" />
+                <TextBlock x:Name="Count" VerticalAlignment="Center" FontSize="11"
+                           Foreground="{DynamicResource MutedBrush}" />
+            </StackPanel>
 
-            <TextBlock Grid.Row="4" x:Name="Status" Text="" FontSize="11"
+            <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,0,0,4">
+                <Button Content="Prev" Click="Prev_Click" Padding="12,4" Margin="0,0,4,0"
+                        ToolTip="Previous match (Shift+Enter)" />
+                <Button Content="Next" Click="Next_Click" Padding="12,4" Margin="0,0,12,0"
+                        ToolTip="Next match (Enter)" />
+                <Button x:Name="ReplaceBtn" Content="Replace" Click="Replace_Click"
+                        Padding="12,4" Margin="0,0,4,0" ToolTip="Replace current match and find next" />
+                <Button x:Name="ReplaceAllBtn" Style="{StaticResource PanelAccentButton}"
+                        Content="Replace All" Click="ReplaceAll_Click" Padding="12,4"
+                        ToolTip="Replace every match in the document" />
+            </StackPanel>
+
+            <TextBlock Grid.Row="5" x:Name="Status" Text="" FontSize="11"
                        Foreground="{DynamicResource MutedBrush}" Margin="0,2,0,0" />
         </Grid>
     </Border>
