@@ -293,15 +293,45 @@
                     <ColumnDefinition x:Name="PreviewCol" Width="*" />
                 </Grid.ColumnDefinitions>
                 <controls:OutlinePanel x:Name="Outline" Grid.Column="0" />
-                <GridSplitter x:Name="OutlineSplitter" Grid.Column="1" Width="6"
-                              HorizontalAlignment="Center" VerticalAlignment="Stretch"
-                              ResizeBehavior="PreviousAndNext" Background="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}"
-                              ShowsPreview="False" />
+                <GridSplitter x:Name="OutlineSplitter" Grid.Column="1" Width="7"
+                              HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                              ResizeBehavior="PreviousAndNext"
+                              Background="{DynamicResource WindowBgBrush}"
+                              ShowsPreview="False">
+                    <GridSplitter.Template>
+                        <ControlTemplate TargetType="GridSplitter">
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}" ClipToBounds="True">
+                                <Rectangle Width="1" Fill="{DynamicResource DividerBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Stretch" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </GridSplitter.Template>
+                </GridSplitter>
                 <controls:MarkdownEditor x:Name="Editor" Grid.Column="2"
                                          DocumentText="{Binding DocumentText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                <GridSplitter x:Name="Splitter" Grid.Column="3" Width="6"
-                              HorizontalAlignment="Center" VerticalAlignment="Stretch"
-                              ResizeBehavior="PreviousAndNext" Background="{DynamicResource {x:Static SystemColors.ControlLightBrushKey}}" />
+                <GridSplitter x:Name="Splitter" Grid.Column="3" Width="7"
+                              HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                              ResizeBehavior="PreviousAndNext"
+                              Background="{DynamicResource WindowBgBrush}">
+                    <GridSplitter.Template>
+                        <ControlTemplate TargetType="GridSplitter">
+                            <Border x:Name="Bd" Background="{TemplateBinding Background}" ClipToBounds="True">
+                                <Rectangle Width="1" Fill="{DynamicResource DividerBrush}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Stretch" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </GridSplitter.Template>
+                </GridSplitter>
                 <controls:PreviewView x:Name="Preview" Grid.Column="4" />
             </Grid>
         </Grid>

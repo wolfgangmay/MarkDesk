@@ -1,8 +1,7 @@
 <UserControl x:Class="MarkDesk.Controls.OutlinePanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Border Background="{DynamicResource WindowBgBrush}"
-            BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,1,0">
+    <Border Background="{DynamicResource WindowBgBrush}">
         <Grid>
             <TextBlock x:Name="EmptyHint"
                        Text="No headings in this document"
