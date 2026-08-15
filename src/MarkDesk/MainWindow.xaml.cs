@@ -331,16 +331,17 @@ public partial class MainWindow : Window
         Editor.Visibility = showEditor ? Visibility.Visible : Visibility.Collapsed;
         Preview.Visibility = Visibility.Visible;
 
-        // The outline is a navigation aid for the editor: shown in Edit and
-        // Split modes, forced off in Preview-only (nothing to jump to).
-        var showOutline = _outlineWanted && showEditor;
+        // The outline is a navigation aid for whichever pane is visible:
+        // in Edit/Split modes it jumps to the source, in Preview-only mode it
+        // scrolls the rendered document (same data-line map).
+        var showOutline = _outlineWanted && (showEditor || showPreview);
         OutlineCol.Width = showOutline
             ? new GridLength(Math.Clamp(OutlineCol.Width.Value, 160, 480))
             : zero;
         OutlineSplitterCol.Width = showOutline ? GridLength.Auto : zero;
         OutlineSplitter.Visibility = showOutline ? Visibility.Visible : Visibility.Collapsed;
         Outline.Visibility = showOutline ? Visibility.Visible : Visibility.Collapsed;
-        OutlineToggle.IsEnabled = showEditor;
+        OutlineToggle.IsEnabled = showEditor || showPreview;
     }
 
     private void UpdateOutline()
@@ -378,6 +379,15 @@ public partial class MainWindow : Window
 
     private void OnOutlineHeadingClicked(int line)
     {
+        // Preview-only layout: jump inside the rendered document (same
+        // data-line map the reverse-sync click handler uses).
+        if (ComputeState() == LayoutState.PreviewOnly)
+        {
+            _ = Preview.ScrollToLine(line);
+            Outline.HighlightLine(line);
+            return;
+        }
+
         // In narrow split (tabbed) with the preview tab active, flip back to
         // the editor so the jump is visible.
         if (ComputeState() == LayoutState.SplitTabbed && _tabbedShowPreview)
@@ -387,6 +397,7 @@ public partial class MainWindow : Window
         }
         Editor.ScrollToLine(line);
         Editor.FocusEditor();
+        Outline.HighlightLine(line);
     }
 
     // Reverse sync: clicking a rendered block scrolls the editor to the

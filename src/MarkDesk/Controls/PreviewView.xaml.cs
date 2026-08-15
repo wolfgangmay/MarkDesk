@@ -65,6 +65,25 @@ public partial class PreviewView : UserControl, IDisposable
             $"window.scrollTo(0,{clamped}*(document.documentElement.scrollHeight-window.innerHeight))");
     }
 
+    /// <summary>
+    /// Scrolls the rendered document so the block starting at the given
+    /// 1-based source line is at the top (outline navigation in Preview mode).
+    /// </summary>
+    public async Task ScrollToLine(int line)
+    {
+        if (!_initialized)
+            return;
+        try
+        {
+            await WebView.CoreWebView2.ExecuteScriptAsync(
+                $"document.querySelector('[data-line=\"{line}\"]')?.scrollIntoView({{ behavior: 'smooth', block: 'start' }});");
+        }
+        catch
+        {
+            // WebView2 temporarily unavailable; ignore (next render restores).
+        }
+    }
+
     public async Task<bool> PrintToPdfAsync(string html, string? documentFolder, string outputPath, PdfPageSize pageSize, PdfMargins margins)
     {
         await _printLock.WaitAsync();
