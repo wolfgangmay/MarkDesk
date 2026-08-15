@@ -26,6 +26,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _imageNamePattern = "";
     [ObservableProperty] private bool _scrollSync;
     [ObservableProperty] private int _renderDebounceMs;
+    [ObservableProperty] private bool _typingAssists = true;
     [ObservableProperty] private PdfPageSize _pdfPageSize;
     [ObservableProperty] private int _pdfMarginTopMm = PdfMargins.DefaultMm;
     [ObservableProperty] private int _pdfMarginBottomMm = PdfMargins.DefaultMm;
@@ -44,6 +45,7 @@ public partial class SettingsViewModel : ObservableObject
         ImageNamePattern = s.ImageNamePattern;
         ScrollSync = s.ScrollSync;
         RenderDebounceMs = s.RenderDebounceMs;
+        TypingAssists = s.TypingAssists;
         PdfPageSize = s.PdfPageSize;
         PdfMarginTopMm = s.PdfMarginTopMm;
         PdfMarginBottomMm = s.PdfMarginBottomMm;
@@ -62,6 +64,7 @@ public partial class SettingsViewModel : ObservableObject
         s.ImageNamePattern = ImageNamePattern;
         s.ScrollSync = ScrollSync;
         s.RenderDebounceMs = RenderDebounceMs;
+        s.TypingAssists = TypingAssists;
         s.PdfPageSize = PdfPageSize;
         var clamped = new PdfMargins(PdfMarginTopMm, PdfMarginBottomMm, PdfMarginLeftMm, PdfMarginRightMm).Clamped();
         s.PdfMarginTopMm = clamped.TopMm;

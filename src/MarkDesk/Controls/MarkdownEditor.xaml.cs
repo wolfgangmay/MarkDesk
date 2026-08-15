@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Xml;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.AvalonEdit.Highlighting.Xshd;
+using MarkDesk.Services;
 
 namespace MarkDesk.Controls;
 
@@ -34,6 +35,9 @@ public partial class MarkdownEditor : UserControl
     private bool _suppress;
     private ScrollViewer? _scrollViewer;
 
+    /// <summary>Gate for the typing assists (list continuation, wrapping). Set from settings.</summary>
+    public bool TypingAssistsEnabled { get; set; } = true;
+
     public event EventHandler? ZoomChanged;
 
     public double EditorFontSize => Editor.FontSize;
@@ -47,7 +51,54 @@ public partial class MarkdownEditor : UserControl
         Editor.TextChanged += (_, _) => SyncToProperty();
         Editor.TextArea.Caret.PositionChanged += (_, _) => CaretPositionChanged?.Invoke(this, EventArgs.Empty);
         Editor.PreviewMouseWheel += OnEditorPreviewMouseWheel;
+        Editor.TextArea.PreviewKeyDown += OnTextAreaPreviewKeyDown;
         Loaded += OnLoaded;
+    }
+
+    private void OnTextAreaPreviewKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || Keyboard.Modifiers != ModifierKeys.None)
+            return;
+        if (!TypingAssistsEnabled)
+            return;
+
+        var doc = Editor.Document;
+        var line = doc.GetLineByOffset(Editor.CaretOffset);
+        if (IsInsideFenceBeforeLine(line))
+            return;
+
+        var text = doc.GetText(line.Offset, line.Length);
+        var item = ListContinuation.ParseItem(text);
+        if (item == null)
+            return;
+
+        if (ListContinuation.IsEmpty(item) && Editor.CaretOffset >= line.Offset + line.Length)
+        {
+            // Empty item: Enter exits the list — clear the marker line entirely.
+            doc.Replace(line.Offset, line.Length, string.Empty);
+            Editor.TextArea.Caret.Offset = line.Offset;
+        }
+        else
+        {
+            // Insert the continuation prefix at the caret; text after the
+            // caret (mid-item Enter) flows onto the new line as its content.
+            doc.Insert(Editor.CaretOffset, "\n" + ListContinuation.BuildNextLinePrefix(item));
+        }
+        e.Handled = true;
+    }
+
+    private bool IsInsideFenceBeforeLine(ICSharpCode.AvalonEdit.Document.DocumentLine current)
+    {
+        IEnumerable<string> LinesBefore()
+        {
+            foreach (var l in Editor.Document.Lines)
+            {
+                if (ReferenceEquals(l, current))
+                    yield break;
+                yield return Editor.Document.GetText(l.Offset, l.Length);
+            }
+        }
+        return ListContinuation.IsInsideFence(LinesBefore());
     }
 
     public void SetFontSize(double size) =>

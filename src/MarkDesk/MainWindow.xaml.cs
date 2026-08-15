@@ -63,6 +63,7 @@ public partial class MainWindow : Window
             ApplyTheme(ViewModel.IsPreviewDark);
             ApplyLayout();
             Editor.SetFontSize(ViewModel.EditorFontSize);
+            Editor.TypingAssistsEnabled = ViewModel.TypingAssists;
             _fileWatcher.Watch(ViewModel.FilePath);
             PopulateRecent();
             UpdateZoomLabel();
@@ -406,6 +407,7 @@ public partial class MainWindow : Window
         dialog.ShowDialog();
 
         ViewModel.ThemeMode = svm.ThemeMode;
+        Editor.TypingAssistsEnabled = ViewModel.TypingAssists;
         _debounceTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(50, ViewModel.RenderDebounceMs));
         ApplyLayout();
     }
