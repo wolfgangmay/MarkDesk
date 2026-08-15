@@ -21,6 +21,39 @@ public class EncodingDetectorTests
     }
 
     [Fact]
+    public void Detects_Utf8_WhenProbeBoundarySplitsMultibyteChar()
+    {
+        // Regression: a >4 KB UTF-8 file whose 4096th byte lands inside a CJK
+        // character. The strict validation of the truncated probe failed and
+        // the file was misdetected as GBK (mojibake) — see pdf-test-cjk.md.
+        var prefix = new byte[4095]; // ASCII filler
+        Array.Fill(prefix, (byte)'a');
+        // "中文" = E4 B8 AD E6 96 87: the lead byte E4 lands exactly at probe
+        // index 4095, so the probe ends with a truncated 3-byte character.
+        var bytes = prefix.Concat(Encoding.UTF8.GetBytes("中文")).ToArray();
+
+        var result = _detector.Detect(bytes);
+
+        Assert.Equal("UTF-8", result.DisplayName);
+        Assert.False(result.HasBom);
+    }
+
+    [Fact]
+    public void StillDetects_Gbk_WhenProbeIsReallyInvalid()
+    {
+        // Random invalid-UTF-8 bytes across the whole probe must NOT be
+        // rescued by the truncation fallback.
+        var bytes = new byte[4096];
+        var rnd = new Random(42);
+        for (var i = 0; i < bytes.Length; i++)
+            bytes[i] = (byte)rnd.Next(0x80, 0xFF);
+
+        var result = _detector.Detect(bytes);
+
+        Assert.Equal("GBK", result.DisplayName);
+    }
+
+    [Fact]
     public void Detects_Utf8_WithoutBom()
     {
         var bytes = Encoding.UTF8.GetBytes("# Hello 世界");

@@ -30,8 +30,12 @@ public sealed class EncodingDetector : IEncodingDetector
             ? bytes
             : bytes.AsSpan(0, ProbeBytes).ToArray();
 
-        // 2. Strict UTF-8 validation (no BOM) — probe only
-        if (IsValidUtf8(probe))
+        // 2. Strict UTF-8 validation (no BOM) — probe only. The probe can cut
+        // a multi-byte character in half at the boundary, so on failure retry
+        // with up to 3 trailing bytes dropped (UTF-8 chars span at most 4
+        // bytes); without this, files whose 4096th byte lands inside a CJK
+        // character were misdetected as GBK and rendered as mojibake.
+        if (IsValidUtf8(probe) || IsValidUtf8Truncated(probe))
             return new(new UTF8Encoding(false), "UTF-8", false);
 
         // 3. UTF-16LE without BOM (NUL-heavy byte pattern, would otherwise mangle as GBK)
@@ -65,6 +69,28 @@ public sealed class EncodingDetector : IEncodingDetector
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// True when the probe is valid UTF-8 once up to 3 trailing bytes are
+    /// ignored — i.e. the only defect is a multi-byte character truncated by
+    /// the probe boundary.
+    /// </summary>
+    private static bool IsValidUtf8Truncated(byte[] bytes)
+    {
+        for (var drop = 1; drop <= 3 && bytes.Length > drop; drop++)
+        {
+            try
+            {
+                Utf8Strict.GetString(bytes, 0, bytes.Length - drop);
+                return true;
+            }
+            catch (DecoderFallbackException)
+            {
+                // invalid earlier in the probe — try dropping one more byte
+            }
+        }
+        return false;
     }
 
     private static Encoding GetGbkEncoding()
