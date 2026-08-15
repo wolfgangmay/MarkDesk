@@ -22,6 +22,10 @@ public class SettingsServiceTests
         Assert.Equal(150, settings.RenderDebounceMs);
         Assert.Equal(PdfPageSize.A4, settings.PdfPageSize);
         Assert.Equal(PdfMargins.Default, settings.PdfMargins);
+        Assert.Equal(14, settings.EditorFontSize);
+        Assert.True(settings.TypingAssists);
+        Assert.True(settings.OutlineVisible);
+        Assert.Equal(220, settings.OutlineWidthPx);
     }
 
     [Fact]

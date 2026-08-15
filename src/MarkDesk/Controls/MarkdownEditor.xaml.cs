@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Xml;
 using ICSharpCode.AvalonEdit.Highlighting;
@@ -10,6 +11,9 @@ namespace MarkDesk.Controls;
 
 public partial class MarkdownEditor : UserControl
 {
+    public const double MinFontSize = 8;
+    public const double MaxFontSize = 36;
+
     public static readonly DependencyProperty DocumentTextProperty =
         DependencyProperty.Register(
             nameof(DocumentText),
@@ -30,6 +34,10 @@ public partial class MarkdownEditor : UserControl
     private bool _suppress;
     private ScrollViewer? _scrollViewer;
 
+    public event EventHandler? ZoomChanged;
+
+    public double EditorFontSize => Editor.FontSize;
+
     public MarkdownEditor()
     {
         InitializeComponent();
@@ -38,7 +46,23 @@ public partial class MarkdownEditor : UserControl
 
         Editor.TextChanged += (_, _) => SyncToProperty();
         Editor.TextArea.Caret.PositionChanged += (_, _) => CaretPositionChanged?.Invoke(this, EventArgs.Empty);
+        Editor.PreviewMouseWheel += OnEditorPreviewMouseWheel;
         Loaded += OnLoaded;
+    }
+
+    public void SetFontSize(double size) =>
+        Editor.FontSize = Math.Clamp(size, MinFontSize, MaxFontSize);
+
+    private void OnEditorPreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if ((Keyboard.Modifiers & ModifierKeys.Control) == 0)
+            return;
+        e.Handled = true;
+        var next = Math.Clamp(Editor.FontSize + (e.Delta > 0 ? 1 : -1), MinFontSize, MaxFontSize);
+        if (Math.Abs(next - Editor.FontSize) < 0.01)
+            return;
+        Editor.FontSize = next;
+        ZoomChanged?.Invoke(this, EventArgs.Empty);
     }
 
     public void ShowSearch() { Editor.Focus(); Finder.Show(false); }

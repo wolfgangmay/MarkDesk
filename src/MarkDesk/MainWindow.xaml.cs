@@ -62,12 +62,14 @@ public partial class MainWindow : Window
         {
             ApplyTheme(ViewModel.IsPreviewDark);
             ApplyLayout();
+            Editor.SetFontSize(ViewModel.EditorFontSize);
             _fileWatcher.Watch(ViewModel.FilePath);
             PopulateRecent();
             UpdateZoomLabel();
             RegisterSubmenuHandlers();
         };
         Preview.ZoomChanged += (_, _) => UpdateZoomLabel();
+        Editor.ZoomChanged += OnEditorZoomChanged;
         PreviewKeyDown += OnPreviewKeyDown;
         Editor.ScrollChanged += OnEditorScroll;
         Editor.CaretPositionChanged += (_, _) =>
@@ -454,7 +456,15 @@ public partial class MainWindow : Window
 
     private void UpdateZoomLabel()
     {
-        ZoomLabel.Text = $"{(int)Math.Round(Preview.PreviewZoom * 100)}%";
+        var editorPct = (int)Math.Round(Editor.EditorFontSize / 14.0 * 100);
+        var previewPct = (int)Math.Round(Preview.PreviewZoom * 100);
+        ZoomLabel.Text = $"Edit {editorPct}% · Preview {previewPct}%";
+    }
+
+    private void OnEditorZoomChanged(object? sender, EventArgs e)
+    {
+        UpdateZoomLabel();
+        ViewModel.PersistEditorFontSize(Editor.EditorFontSize);
     }
 
     private void Recent_SubmenuOpened(object sender, RoutedEventArgs e) => PopulateRecent();

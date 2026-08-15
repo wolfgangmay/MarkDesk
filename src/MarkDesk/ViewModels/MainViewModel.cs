@@ -91,6 +91,14 @@ public partial class MainViewModel : ObservableObject
     public int RenderDebounceMs => _settingsService.Current.RenderDebounceMs;
     public PdfPageSize PdfPageSize => _settingsService.Current.PdfPageSize;
     public PdfMargins PdfMargins => _settingsService.Current.PdfMargins;
+    public int EditorFontSize => _settingsService.Current.EditorFontSize;
+    public bool TypingAssists => _settingsService.Current.TypingAssists;
+
+    public void PersistEditorFontSize(double size)
+    {
+        _settingsService.Current.EditorFontSize = (int)Math.Clamp(Math.Round(size), 8, 36);
+        _settingsService.Save();
+    }
     public bool ScrollSync => _settingsService.Current.ScrollSync;
     public IReadOnlyList<string> RecentFiles => _settingsService.Current.RecentFiles;
 

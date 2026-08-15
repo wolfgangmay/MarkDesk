@@ -52,6 +52,10 @@ public sealed class AppSettings
     public int PdfMarginBottomMm { get; set; } = PdfMargins.DefaultMm;
     public int PdfMarginLeftMm { get; set; } = PdfMargins.DefaultMm;
     public int PdfMarginRightMm { get; set; } = PdfMargins.DefaultMm;
+    public int EditorFontSize { get; set; } = 14;
+    public bool TypingAssists { get; set; } = true;
+    public bool OutlineVisible { get; set; } = true;
+    public int OutlineWidthPx { get; set; } = 220;
     public List<string> RecentFiles { get; set; } = new();
 
     public PdfMargins PdfMargins => new PdfMargins(PdfMarginTopMm, PdfMarginBottomMm, PdfMarginLeftMm, PdfMarginRightMm).Clamped();
