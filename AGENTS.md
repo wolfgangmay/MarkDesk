@@ -3,6 +3,13 @@
 .NET 10 WPF Markdown editor (AvalonEdit + WebView2 preview + Markdig).
 Build: `dotnet build MarkDesk.slnx -c Release` · Tests: `dotnet test MarkDesk.slnx`
 
+## HARD RULE: done means verified
+
+A change is not finished until `dotnet build MarkDesk.slnx -c Release`
+reports 0 errors AND `dotnet test MarkDesk.slnx` is fully green. If you touch
+`PreviewTemplate.cs`, also export a PDF from one of the `samples/pdf-test-*.md`
+documents — the template drives both the on-screen preview and the print path.
+
 ## HARD RULE: UI must follow the active theme
 
 **Every new or modified UI element MUST render correctly in BOTH light and dark
@@ -38,3 +45,14 @@ Rules:
 4. **Verify visually in both themes** before considering a UI change done:
    flip Settings → Appearance → Theme (Light/Dark) and check hover, checked,
    and disabled states of what you touched.
+
+## Release process
+
+1. Bump all three version fields in `src/MarkDesk/MarkDesk.csproj`
+   (`Version`, `AssemblyVersion`, `FileVersion`) — they must stay in sync.
+2. Commit the bump (style: `chore: bump version to X.Y.Z`).
+3. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`. The tag push
+   triggers `.github/workflows/release.yml`, which publishes
+   `MarkDesk-X.Y.Z-win-x64.zip` + `SHA256.txt` as a GitHub Release.
+4. Update the version badge in `README.md` and `README.zh-CN.md` in the same
+   docs/commit batch as other doc changes.

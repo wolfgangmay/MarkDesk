@@ -2,7 +2,7 @@
 
 A lightweight Markdown viewer and editor for Windows. Open a `.md` file, read it, edit it, save it, export to PDF — nothing more, nothing less.
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Version](https://img.shields.io/badge/version-0.1.2-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Downloads](https://img.shields.io/github/downloads/wolfgangmay/MarkDesk/total)
@@ -20,13 +20,13 @@ MarkDesk is a no-fuss Markdown app. It is not a notebook, not a knowledge base, 
 
 | Area | Details |
 | --- | --- |
-| Editing | AvalonEdit-based editor, Markdown syntax highlighting, find & replace, word wrap, line/column caret, word count |
+| Editing | AvalonEdit-based editor, Markdown syntax highlighting, find & replace (regex mode, match counter, `Enter`/`Shift+Enter` navigation), word wrap, line/column caret, word count |
 | Live preview | Side-by-side / preview-only / editor-only layouts, 150 ms debounced re-render, scroll sync |
 | Rendering | GitHub-flavored Markdown via Markdig — tables, task lists, footnotes, strikethrough, emoji (`:smile:`), heading anchors, custom containers (`:::warning`), GitHub-style alerts (`> [!NOTE]`) |
 | Rich content | Syntax highlighting (highlight.js), math via KaTeX, diagrams via Mermaid — **all bundled locally, fully offline** |
-| Themes | Light / Dark / Follow system; applies to title bar, menus, popups, dialogs, and message boxes |
+| Themes | Light / Dark / Follow system; applies to title bar, menus, popups, dialogs, message boxes, scrollbars and every interactive control |
 | Files | Open / save / save-as, recent files, external-change detection with reload prompt, large-file warning |
-| PDF export | A4 / Letter, printed on a forced light layout via a dedicated offscreen WebView2 (the on-screen preview is never disturbed) |
+| PDF export | A4 / Letter with configurable margins (5–40 mm), smart pagination (long code blocks and tables split cleanly with repeated headers, small units like diagrams and alerts stay intact, no half-page gaps); printed on a forced light layout via a dedicated offscreen WebView2 (the on-screen preview is never disturbed) |
 | Images | Paste images from clipboard (saved next to the document, inserted as Markdown links) |
 | File association | Register MarkDesk as the Windows default for `.md` from the Tools menu (user-level, no admin) |
 

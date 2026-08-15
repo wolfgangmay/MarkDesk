@@ -2,7 +2,7 @@
 
 一个面向 Windows 的轻量级 Markdown 查看器与编辑器。打开 `.md`、阅读、编辑、保存,导出 PDF —— 仅此而已。
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
+![Version](https://img.shields.io/badge/version-0.1.2-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Downloads](https://img.shields.io/github/downloads/wolfgangmay/MarkDesk/total)
@@ -20,13 +20,13 @@ MarkDesk 是一款专注的 Markdown 工具。它不是笔记本、不是知识�
 
 | 领域 | 细节 |
 | --- | --- |
-| 编辑 | 基于 AvalonEdit,Markdown 语法高亮、查找替换、自动换行、行列光标、字数统计 |
+| 编辑 | 基于 AvalonEdit,Markdown 语法高亮、查找替换(正则模式、匹配计数、`Enter`/`Shift+Enter` 跳转)、自动换行、行列光标、字数统计 |
 | 实时预览 | 仅编辑 / 分栏 / 仅预览 三种布局,150ms 防抖重渲染,滚动同步 |
 | 渲染 | 基于 Markdig 的 GitHub 风格 Markdown —— 表格、任务列表、脚注、删除线、emoji(`:smile:`)、标题锚点、自定义容器(`:::warning`)、GitHub Alerts(`> [!NOTE]`) |
 | 富内容 | 语法高亮(highlight.js)、数学公式(KaTeX)、图表(Mermaid)—— **全部本地打包,完全离线** |
-| 主题 | 浅色 / 深色 / 跟随系统;覆盖标题栏、菜单、弹窗、对话框、消息框 |
+| 主题 | 浅色 / 深色 / 跟随系统;覆盖标题栏、菜单、弹窗、对话框、消息框、滚动条及所有交互控件 |
 | 文件 | 打开 / 保存 / 另存为、最近文件、外部修改检测与重载提示、大文件警告 |
-| PDF 导出 | A4 / Letter,通过专用离屏 WebView2 以强制浅色版面打印(绝不干扰屏幕预览) |
+| PDF 导出 | A4 / Letter,页边距可调(5–40 mm);智能分页(长代码块与表格跨页续排且表头重复、图表与提示块等小元素保持完整、不再出现半页空白);通过专用离屏 WebView2 以强制浅色版面打印(绝不干扰屏幕预览) |
 | 图片 | 粘贴剪贴板图片(保存到文档旁,插入为 Markdown 链接) |
 | 文件关联 | 从工具菜单一键将 MarkDesk 注册为 `.md` 的 Windows 默认程序(用户级,无需管理员) |
 
