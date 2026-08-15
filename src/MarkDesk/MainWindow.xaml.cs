@@ -540,16 +540,31 @@ public partial class MainWindow : Window
             e.Data.GetData(DataFormats.FileDrop) is string[] files &&
             files.Length > 0)
         {
-            var path = files[0];
-            var ext = Path.GetExtension(path).ToLowerInvariant();
-            if (ext is ".md" or ".markdown")
+            // A markdown file in the drop means "open this document" — it
+            // replaces the current one, so any accompanying images are
+            // ignored. Otherwise every dropped image is imported in order.
+            var markdown = files.FirstOrDefault(f =>
+                Path.GetExtension(f).ToLowerInvariant() is ".md" or ".markdown");
+            if (markdown != null)
             {
-                ViewModel.OpenPath(path);
+                ViewModel.OpenPath(markdown);
+                return;
             }
-            else if (ImageExtensions.Contains(ext))
+
+            foreach (var path in files)
             {
-                var bytes = File.ReadAllBytes(path);
-                await PasteImageAsync(bytes, ext);
+                var ext = Path.GetExtension(path).ToLowerInvariant();
+                if (!ImageExtensions.Contains(ext))
+                    continue;
+                try
+                {
+                    var bytes = File.ReadAllBytes(path);
+                    await PasteImageAsync(bytes, ext);
+                }
+                catch (Exception ex)
+                {
+                    _dialogService.Warn(ex.Message, "Drop image");
+                }
             }
         }
     }
