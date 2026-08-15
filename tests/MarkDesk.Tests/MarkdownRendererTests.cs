@@ -51,4 +51,25 @@ public class MarkdownRendererTests : VerifyBase
         Assert.Contains("<blockquote>", html);
         Assert.Contains("[!NOTE]", html);
     }
+
+    // The preview's anchor-click JS resolves links via
+    // decodeURIComponent(href fragment) -> getElementById(...). This locks the
+    // renderer contract it depends on: for every heading, the percent-decoded
+    // fragment of a matching anchor link equals the heading's generated id.
+    [Theory]
+    [InlineData("## My Title")]
+    [InlineData("## 中文标题")]
+    [InlineData("## 中文 标题")]
+    [InlineData("## 🚀 Heading")]
+    [InlineData("## C++ & C# Specials!")]
+    public void AnchorLink_HrefDecodesToHeadingId(string heading)
+    {
+        var id = ExtractMatch(_renderer.RenderToHtml(heading), "<h2 id=\"([^\"]*)\"");
+        var html = _renderer.RenderToHtml($"[t](#{id})\n\n{heading}\n");
+        var fragment = ExtractMatch(html, "href=\"#([^\"]*)\"");
+        Assert.Equal(id, Uri.UnescapeDataString(fragment));
+    }
+
+    private static string ExtractMatch(string html, string pattern) =>
+        System.Text.RegularExpressions.Regex.Match(html, pattern).Groups[1].Value;
 }

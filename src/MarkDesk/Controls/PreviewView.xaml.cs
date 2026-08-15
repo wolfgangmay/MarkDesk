@@ -339,11 +339,15 @@ public partial class PreviewView : UserControl, IDisposable
 
         var uri = e.Uri ?? string.Empty;
         var hashIndex = uri.IndexOf('#');
+        // The preview document is loaded via NavigateToString (about:blank) but
+        // carries <base href="https://mdlocal/">, so an in-page anchor resolves
+        // to either form. Anything else (external site, relative file, …) is a
+        // real navigation away from the rendered document.
         var isFragmentJump = hashIndex >= 0 &&
-            (hashIndex == 0 || uri[..hashIndex] is "about:blank");
+            (hashIndex == 0 || uri[..hashIndex] is "about:blank" or "https://mdlocal/");
 
         var message = isFragmentJump
-            ? $"The anchor '#{uri[(hashIndex + 1)..]}' does not exist on this page."
+            ? $"The anchor '#{Uri.UnescapeDataString(uri[(hashIndex + 1)..])}' does not exist on this page."
             : $"This link cannot be followed inside the preview:\n\n{uri}\n\nOnly in-page anchor links (#heading) are allowed here.";
 
         ThemedMessageBox.Show(Application.Current.MainWindow, message,

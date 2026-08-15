@@ -10,6 +10,8 @@ This file exercises the preview's link rules. Click every link below and check t
 - [Valid anchor -> Section One](#section-one)
 - [Valid anchor -> Section Two](#section-two)
 - [Valid anchor -> Section Three](#three-contains-a-nested-list)
+- [Valid CJK anchor -> 中文标题](#中文标题)
+- [Valid CJK anchor (encoded href) -> 中文 标题](#中文%20标题)
 - [Broken anchor](#no-such-section-exists)
 - [External link: GitHub](https://github.com/wolfgangmay/MarkDesk)
 - [Relative file link](links-target.md)
@@ -25,6 +27,14 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
 ## Section Two
 
 Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit.
+
+## 中文标题
+
+中文锚点测试:此标题验证非 ASCII 锚点(百分号编码的 href)能正确跳转,不应弹出错误对话框。
+
+## 中文 标题
+
+带空格的中文锚点测试:同样应正确跳转。
 
 ## Section Three
 

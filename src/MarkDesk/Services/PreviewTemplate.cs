@@ -131,7 +131,9 @@ h1,h2,h3 {{ page-break-after:avoid; }}
       var href = a.getAttribute('href');
       if(!href || href.charAt(0) !== '#') return;
       if(href.length <= 1){{ e.preventDefault(); return; }}
-      var el = document.getElementById(href.slice(1));
+      var raw = href.slice(1), id = raw;
+      try {{ id = decodeURIComponent(raw); }} catch(err) {{}}
+      var el = document.getElementById(raw) || document.getElementById(id) || document.getElementsByName(id)[0];
       if(el){{ e.preventDefault(); el.scrollIntoView({{behavior:'smooth'}}); }}
     }});
   }})();
