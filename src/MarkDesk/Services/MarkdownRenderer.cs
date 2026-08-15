@@ -23,7 +23,16 @@ public sealed class MarkdownRenderer : IMarkdownRenderer
         .Build();
 
     public string RenderToHtml(string markdown) =>
-        RenderWithSourceLines(markdown ?? string.Empty);
+        RenderWithSourceLines(markdown ?? string.Empty, CancellationToken.None);
+
+    /// <summary>
+    /// Cancellable variant for the background render pipeline. Cancellation
+    /// is coarse (checked between Parse and ToHtml): a 5 MB document parses
+    /// in ~7 s during which the token is not observed, but once parsing is
+    /// done a cancelled render exits before producing any HTML.
+    /// </summary>
+    public string RenderToHtml(string markdown, CancellationToken token) =>
+        RenderWithSourceLines(markdown ?? string.Empty, token);
 
     /// <summary>Syntax tree parsed with the same pipeline as the preview.</summary>
     public MarkdownDocument Parse(string markdown) =>
@@ -35,9 +44,10 @@ public sealed class MarkdownRenderer : IMarkdownRenderer
     /// block to jump to its source) resolves clicks against it. Uses the
     /// public attribute mechanism, so core block renderers emit it natively.
     /// </summary>
-    private static string RenderWithSourceLines(string markdown)
+    private static string RenderWithSourceLines(string markdown, CancellationToken token)
     {
         var document = Markdown.Parse(markdown, Pipeline);
+        token.ThrowIfCancellationRequested();
         foreach (var block in document.Descendants<Block>())
         {
             var attrs = block.GetAttributes();
@@ -46,6 +56,7 @@ public sealed class MarkdownRenderer : IMarkdownRenderer
                 attrs.Properties.Add(new KeyValuePair<string, string?>("data-line",
                     (block.Line + 1).ToString(CultureInfo.InvariantCulture)));
         }
+        token.ThrowIfCancellationRequested();
         return document.ToHtml(Pipeline);
     }
 }

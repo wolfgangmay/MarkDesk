@@ -61,4 +61,31 @@ public class EncodingDetectorTests
 
         Assert.Equal("UTF-8", result.DisplayName);
     }
+
+    [Fact]
+    public void Detects_MultiMegabyteFile_FromProbeOnly()
+    {
+        // 6 MB of valid UTF-8: detection must rely on the 4 KB probe, not a
+        // whole-file scan (which was the pre-optimization behaviour).
+        var bytes = new byte[6 * 1024 * 1024];
+        Encoding.UTF8.GetBytes("## Section\n").CopyTo(bytes, 0);
+
+        var result = _detector.Detect(bytes);
+
+        Assert.Equal("UTF-8", result.DisplayName);
+    }
+
+    [Fact]
+    public void Detects_Gbk_WhenProbeContainsInvalidBytes()
+    {
+        // Large file whose first 4 KB contain GBK bytes (not valid UTF-8).
+        var gbk = Encoding.GetEncoding(936);
+        var head = gbk.GetBytes(new string('汉', 3000)); // ~6 KB of GBK
+        var bytes = new byte[6 * 1024 * 1024];
+        head.CopyTo(bytes, 0);
+
+        var result = _detector.Detect(bytes);
+
+        Assert.Equal("GBK", result.DisplayName);
+    }
 }

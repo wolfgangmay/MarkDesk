@@ -24,4 +24,8 @@
     <ProjectReference Include="..\..\src\MarkDesk\MarkDesk.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Resource Include="..\..\src\MarkDesk\Assets\Markdown.xshd" Link="Assets\Markdown.xshd" />
+  </ItemGroup>
+
 </Project>

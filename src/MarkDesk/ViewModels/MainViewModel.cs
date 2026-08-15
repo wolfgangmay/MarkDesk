@@ -2,6 +2,8 @@ using System.IO;
 using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ICSharpCode.AvalonEdit.Document;
+using ICSharpCode.AvalonEdit.Utils;
 using MarkDesk.Models;
 using MarkDesk.Services;
 
@@ -9,13 +11,13 @@ namespace MarkDesk.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
-    private const long LargeFileThresholdBytes = 5L * 1024 * 1024; // 5 MB (FR-01)
-
     private readonly ISettingsService _settingsService;
     private readonly IFileService _fileService;
     private readonly IDialogService _dialogService;
     private readonly IMarkdownRenderer _markdownRenderer;
     private readonly PreviewTemplate _previewTemplate;
+    private readonly RenderGate _renderGate = new();
+    private CancellationTokenSource? _renderCts;
 
     private DetectedEncoding _currentEncoding = new(new UTF8Encoding(false), "UTF-8", false);
     private bool _isLoading;
@@ -77,12 +79,23 @@ public partial class MainViewModel : ObservableObject
         {
             if (SetProperty(ref _documentText, value))
             {
+                // Any in-flight render is now stale; cancel it so a slow
+                // background render can't compete with the next keystroke.
+                _renderCts?.Cancel();
                 if (!_isLoading)
                     IsDirty = true;
                 UpdateWordCount();
             }
         }
     }
+
+    /// <summary>Document size in bytes (file length, or UTF-8 estimate for unsaved text).</summary>
+    [ObservableProperty]
+    private long _documentBytes;
+
+    /// <summary>Size tier — drives debounce, preview mode and read-only state.</summary>
+    [ObservableProperty]
+    private DocumentTier _documentTier = DocumentTier.RealTime;
 
     [ObservableProperty]
     private int _wordCount;
@@ -129,9 +142,40 @@ public partial class MainViewModel : ObservableObject
         return _previewTemplate.Build(body, IsPreviewDark);
     }
 
-    /// <summary>Heading outline parsed with the same pipeline as the preview.</summary>
+    /// <summary>
+    /// Background preview render: cancels any in-flight render, runs the
+    /// Markdig pass off the UI thread, and returns null when a newer render
+    /// owns the preview (version gate) or the render was cancelled.
+    /// </summary>
+    public async Task<string?> BuildPreviewDocumentAsync()
+    {
+        _renderCts?.Cancel();
+        _renderCts?.Dispose();
+        var cts = _renderCts = new CancellationTokenSource();
+        var version = _renderGate.Next();
+        try
+        {
+            var body = await Task.Run(
+                () => _markdownRenderer.RenderToHtml(DocumentText, cts.Token), cts.Token);
+            if (cts.IsCancellationRequested || !_renderGate.TryClaim(version))
+                return null;
+            return _previewTemplate.Build(body, IsPreviewDark);
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Heading outline. Tier 3 (large file) uses the fast line scan instead
+    /// of a full Markdig parse — the cost difference is seconds vs hundreds
+    /// of milliseconds at 5+ MB.
+    /// </summary>
     public IReadOnlyList<OutlineItem> BuildOutline() =>
-        OutlineParser.Extract(_markdownRenderer.Parse(DocumentText));
+        DocumentTier == DocumentTier.Large
+            ? FastOutlineScanner.Extract(DocumentText)
+            : OutlineParser.Extract(_markdownRenderer.Parse(DocumentText));
 
     // PDF export always uses light theme regardless of the app's current theme,
     // so the printed document is consistently readable on paper.
@@ -179,13 +223,13 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Open()
+    private async Task OpenAsync()
     {
         if (!EnsureSaved())
             return;
         var path = _dialogService.PickOpenMarkdownFile();
         if (path != null)
-            LoadFrom(path);
+            await LoadFromAsync(path);
     }
 
     public void OpenPath(string path)
@@ -198,20 +242,25 @@ public partial class MainViewModel : ObservableObject
         path = Path.GetFullPath(path);
         if (!EnsureSaved())
             return;
-        LoadFrom(path);
+        _ = LoadFromAsync(path);
     }
 
-    public void ReloadCurrent()
+    public async Task ReloadCurrentAsync()
     {
         if (FilePath == null)
             return;
         try
         {
-            var result = _fileService.Load(FilePath);
-            SetDocument(result.Text, FilePath, result.Encoding);
+            OpenProgressText = "Reloading file…";
+            var result = await Task.Run(() => _fileService.Load(FilePath));
+            OpenProgressText = "Building editor…";
+            var document = await BuildDocumentAsync(result.Text);
+            SetDocument(result.Text, FilePath, result.Encoding, document);
+            OpenProgressText = null;
         }
         catch (Exception ex)
         {
+            OpenProgressText = null;
             _dialogService.Warn("Failed to reload file:\n" + ex.Message, "Reload");
         }
     }
@@ -254,29 +303,51 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsPreviewActive));
     }
 
-    private void LoadFrom(string path)
+    public async Task LoadFromAsync(string path)
     {
         var info = new FileInfo(path);
-        if (info.Exists && info.Length > LargeFileThresholdBytes)
+        if (info.Exists && DocumentTierResolver.ForBytes(info.Length) == DocumentTier.Large)
         {
             var mb = info.Length / (1024 * 1024);
             if (!_dialogService.AskConfirm(
-                    $"This file is large ({mb} MB). Continue opening?",
-                    "Large file"))
+                    $"This file is large ({mb} MB) and will open in large-file mode:\n\n" +
+                    "• Preview disabled\n• Read-only editing\n• Fast heading outline\n\nContinue opening?",
+                    "Large file mode"))
                 return;
         }
 
         try
         {
-            var result = _fileService.Load(path);
-            SetDocument(result.Text, path, result.Encoding);
+            // Read + decode + rope build all off the UI thread; the window
+            // stays responsive while a large document loads.
+            OpenProgressText = "Reading file…";
+            var result = await Task.Run(() => _fileService.Load(path));
+            OpenProgressText = "Building editor…";
+            var document = await BuildDocumentAsync(result.Text);
+            SetDocument(result.Text, path, result.Encoding, document);
+            OpenProgressText = null;
             AddRecent(path);
-            ViewMode = ViewMode.Preview;
+            // Large-file mode has no preview: force the editor, overriding the
+            // user's default view preference (which may be Preview).
+            ViewMode = DocumentTier == DocumentTier.Large ? ViewMode.Edit : ViewMode.Preview;
         }
         catch (Exception ex)
         {
+            OpenProgressText = null;
             _dialogService.Warn($"Failed to open file:\n{ex.Message}", "Open error");
         }
+    }
+
+    /// <summary>
+    /// Builds the rope off the UI thread. The TextDocument itself must be
+    /// created on the UI thread: AvalonEdit text documents are thread-affine
+    /// ("text document cannot be accessed only from the thread that owns it"
+    /// in debug builds), so only the rope work is backgrounded.
+    /// </summary>
+    private static async Task<TextDocument> BuildDocumentAsync(string text)
+    {
+        var rope = await Task.Run(() => new Rope<char>(text ?? string.Empty));
+        return new TextDocument(new RopeTextSource(rope));
     }
 
     private bool DoSaveTo(string path)
@@ -296,16 +367,26 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
-    private void SetDocument(string text, string? path, DetectedEncoding encoding)
+    private void SetDocument(string text, string? path, DetectedEncoding encoding, TextDocument? document = null)
     {
         _isLoading = true;
         try
         {
-            DocumentText = text;
+            // PendingDocument first, then FilePath: MainWindow consumes the
+            // pre-built rope on the FilePath change and syncs DocumentText.
+            // Assigning DocumentText first would make MarkdownEditor do a
+            // full Document.Text replacement of the previous (possibly 6 MB)
+            // document on the UI thread.
+            PendingDocument = document;
             FilePath = path;
+            DocumentText = text;
             _currentEncoding = encoding;
             Encoding = encoding.DisplayName;
             IsDirty = false;
+            DocumentBytes = path != null && File.Exists(path)
+                ? new FileInfo(path).Length
+                : System.Text.Encoding.UTF8.GetByteCount(text);
+            DocumentTier = DocumentTierResolver.ForBytes(DocumentBytes);
         }
         finally
         {
@@ -313,6 +394,16 @@ public partial class MainViewModel : ObservableObject
         }
         UpdateTitle();
     }
+
+    /// <summary>
+    /// Pre-built rope document for the editor (large-file path); consumed by
+    /// MainWindow once the editor is ready, then cleared.
+    /// </summary>
+    public TextDocument? PendingDocument { get; set; }
+
+    /// <summary>Non-null while a large document is being opened or parsed; shown in the status bar.</summary>
+    [ObservableProperty]
+    private string? _openProgressText;
 
     private bool EnsureSaved()
     {
@@ -379,6 +470,9 @@ public partial class MainViewModel : ObservableObject
 
     private void UpdateWordCount()
     {
+        // Skipped in large-file mode: word-splitting 5+ MB allocates heavily.
+        if (DocumentTier == DocumentTier.Large)
+            return;
         WordCount = string.IsNullOrWhiteSpace(DocumentText)
             ? 0
             : DocumentText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;

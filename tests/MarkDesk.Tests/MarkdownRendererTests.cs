@@ -45,6 +45,15 @@ public class MarkdownRendererTests : VerifyBase
     }
 
     [Fact]
+    public void RenderToHtml_WithCancelledToken_Throws()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        Assert.ThrowsAny<OperationCanceledException>(
+            () => _renderer.RenderToHtml("# Title\n\nBody\n", cts.Token));
+    }
+
+    [Fact]
     public void Blocks_CarryOneBasedSourceLine()
     {
         var html = _renderer.RenderToHtml("first para\n\nsecond para\n");

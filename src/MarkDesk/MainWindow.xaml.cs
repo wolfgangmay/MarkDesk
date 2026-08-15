@@ -33,6 +33,7 @@ public partial class MainWindow : Window
 
     private readonly DispatcherTimer _debounceTimer;
     private readonly DispatcherTimer _outlineTimer;
+    private readonly RenderGate _outlineGate = new();
     private readonly IDialogService _dialogService;
     private readonly IImagePasterService _imagePaster;
     private readonly FileWatcher _fileWatcher;
@@ -74,6 +75,7 @@ public partial class MainWindow : Window
             OutlineToggle.IsChecked = _outlineWanted;
             OutlineCol.Width = new GridLength(Math.Clamp(s.OutlineWidthPx, 160, 480));
             ApplyLayout();
+            ApplyLargeFileMode();
             UpdateOutline();
             _fileWatcher.Watch(ViewModel.FilePath);
             PopulateRecent();
@@ -112,13 +114,13 @@ public partial class MainWindow : Window
 
         if (!ViewModel.IsDirty)
         {
-            ViewModel.ReloadCurrent();
+            _ = ViewModel.ReloadCurrentAsync();
             return;
         }
 
         var choice = _dialogService.AskReloadExternalChange();
         if (choice == FileReloadChoice.Reload)
-            ViewModel.ReloadCurrent();
+            _ = ViewModel.ReloadCurrentAsync();
         else if (choice == FileReloadChoice.KeepMine)
             ViewModel.IsDirty = true;
     }
@@ -131,7 +133,11 @@ public partial class MainWindow : Window
             ApplyTheme(ViewModel.IsPreviewDark);
         else if (e.PropertyName == nameof(ViewModel.DocumentText))
         {
-            if (_previewVisible)
+            // Backstop for the rare case where FilePath didn't change (e.g.
+            // reopening the same path): the pre-built rope still needs to
+            // reach the editor instead of a UI-thread Text replacement.
+            ConsumePendingDocument();
+            if (_previewVisible && ViewModel.DocumentTier != DocumentTier.Large)
             {
                 _debounceTimer.Stop();
                 _debounceTimer.Start();
@@ -140,7 +146,12 @@ public partial class MainWindow : Window
             _outlineTimer.Start();
         }
         else if (e.PropertyName == nameof(ViewModel.FilePath))
+        {
             _fileWatcher.Watch(ViewModel.FilePath);
+            ConsumePendingDocument();
+        }
+        else if (e.PropertyName == nameof(ViewModel.DocumentTier))
+            ApplyLargeFileMode();
     }
 
     private enum LayoutState { EditOnly, PreviewOnly, SplitWide, SplitTabbed }
@@ -346,8 +357,28 @@ public partial class MainWindow : Window
 
     private void UpdateOutline()
     {
-        Outline.SetHeadings(ViewModel.BuildOutline());
-        Outline.HighlightLine(Editor.CaretLine);
+        // Background parse so a large document never freezes the UI; the
+        // version gate discards stale results (a newer edit owns the panel).
+        var version = _outlineGate.Next();
+        var tier = ViewModel.DocumentTier;
+        var large = tier == DocumentTier.Large;
+        if (large)
+            ViewModel.OpenProgressText = "Parsing outline…";
+        Outline.SetLoading(true);
+        _ = Task.Run(ViewModel.BuildOutline).ContinueWith(t =>
+        {
+            if (!_outlineGate.TryClaim(version))
+                return;
+            Dispatcher.Invoke(() =>
+            {
+                if (large)
+                    ViewModel.OpenProgressText = null;
+                if (t.IsFaulted || t.IsCanceled)
+                    return;
+                Outline.SetHeadings(t.Result);
+                Outline.HighlightLine(Editor.CaretLine);
+            });
+        }, TaskScheduler.Default);
     }
 
     private void OutlineToggle_Click(object sender, RoutedEventArgs e)
@@ -423,17 +454,69 @@ public partial class MainWindow : Window
 
     private void RenderNow()
     {
+        if (ViewModel.DocumentTier == DocumentTier.Large)
+        {
+            Preview.ShowPlaceholder(
+                "Large file mode\n\n" +
+                "Preview is disabled for files over 5 MB.\n" +
+                "PDF export still works for files up to 20 MB.");
+            PreviewStatus.Text = "Large file mode";
+            return;
+        }
+
         _debounceTimer.Stop();
+        if (ViewModel.DocumentTier == DocumentTier.Medium)
+            PreviewStatus.Text = "Rendering…";
+        _ = RenderCoreAsync();
+    }
+
+    private async Task RenderCoreAsync()
+    {
         try
         {
-            var html = ViewModel.BuildPreviewDocument();
-            _ = Preview.UpdateAsync(html, ViewModel.DocumentFolder);
-            PreviewStatus.Text = "Preview: synced ✓";
+            var html = await ViewModel.BuildPreviewDocumentAsync();
+            if (html == null)
+                return; // superseded by a newer render or cancelled
+            await Preview.UpdateAsync(html, ViewModel.DocumentFolder);
+            if (_previewVisible)
+                PreviewStatus.Text = "Preview: synced ✓";
         }
         catch (Exception ex)
         {
             PreviewStatus.Text = "Preview: error — " + ex.Message;
         }
+    }
+
+    /// <summary>Debounce scales with the document tier (150 ms realtime, 1.5 s medium).</summary>
+    private void UpdateDebounceForTier()
+    {
+        var ms = ViewModel.DocumentTier switch
+        {
+            DocumentTier.RealTime => Math.Max(50, ViewModel.RenderDebounceMs),
+            DocumentTier.Medium => 1500,
+            _ => 60000 // Large: the preview timer is never started anyway.
+        };
+        _debounceTimer.Interval = TimeSpan.FromMilliseconds(ms);
+    }
+
+    /// <summary>Large-file mode wiring: read-only editor, preview placeholder, status.</summary>
+    private void ApplyLargeFileMode()
+    {
+        var large = ViewModel.DocumentTier == DocumentTier.Large;
+        Editor.IsReadOnly = large;
+        Editor.SetHighlighting(!large);
+        UpdateDebounceForTier();
+        if (large && _previewVisible)
+            RenderNow();
+    }
+
+    /// <summary>Swaps in the pre-built rope document (large-file loading).</summary>
+    private void ConsumePendingDocument()
+    {
+        if (ViewModel.PendingDocument == null)
+            return;
+        Editor.LoadDocument(ViewModel.PendingDocument);
+        ViewModel.PendingDocument = null;
     }
 
     private void TabEdit_Click(object sender, RoutedEventArgs e)
@@ -513,7 +596,7 @@ public partial class MainWindow : Window
 
         ViewModel.ThemeMode = svm.ThemeMode;
         Editor.TypingAssistsEnabled = ViewModel.TypingAssists;
-        _debounceTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(50, ViewModel.RenderDebounceMs));
+        UpdateDebounceForTier();
         ApplyLayout();
     }
 
@@ -608,6 +691,15 @@ public partial class MainWindow : Window
 
     private async void ExportPdf_Executed(object sender, ExecutedRoutedEventArgs e)
     {
+        if (ViewModel.DocumentTier == DocumentTier.Large &&
+            ViewModel.DocumentBytes > DocumentTierResolver.PdfExportLimitBytes)
+        {
+            _dialogService.Warn(
+                "This file is too large to export as PDF (limit 20 MB).",
+                "Export");
+            return;
+        }
+
         var path = _dialogService.PickSavePdfFile(ViewModel.FilePath);
         if (path == null)
             return;
@@ -615,7 +707,9 @@ public partial class MainWindow : Window
         PreviewStatus.Text = "Exporting PDF…";
         try
         {
-            var html = ViewModel.BuildPdfDocument();
+            // HTML generation runs off the UI thread; at 5–20 MB it takes
+            // seconds to minutes, so the window must stay responsive.
+            var html = await Task.Run(() => ViewModel.BuildPdfDocument());
             var ok = await Preview.PrintToPdfAsync(html, ViewModel.DocumentFolder, path, ViewModel.PdfPageSize, ViewModel.PdfMargins);
             PreviewStatus.Text = ok ? "PDF exported ✓" : "PDF export failed";
             if (!ok)

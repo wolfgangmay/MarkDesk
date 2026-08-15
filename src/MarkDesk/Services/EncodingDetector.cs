@@ -7,6 +7,13 @@ public sealed class EncodingDetector : IEncodingDetector
     private static readonly UTF8Encoding Utf8Strict =
         new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 
+    /// <summary>
+    /// Detection only ever inspects the first few KB. Whole-file scans made
+    /// opening large documents measurably slower; a 4 KB probe is plenty to
+    /// tell BOM/UTF-8/GBK/UTF-16 apart (the first high byte decides).
+    /// </summary>
+    private const int ProbeBytes = 4096;
+
     public DetectedEncoding Detect(byte[] bytes)
     {
         // 1. BOM detection
@@ -19,12 +26,16 @@ public sealed class EncodingDetector : IEncodingDetector
         if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
             return new(Encoding.BigEndianUnicode, "UTF-16BE", true);
 
-        // 2. Strict UTF-8 validation (no BOM)
-        if (IsValidUtf8(bytes))
+        var probe = bytes.Length <= ProbeBytes
+            ? bytes
+            : bytes.AsSpan(0, ProbeBytes).ToArray();
+
+        // 2. Strict UTF-8 validation (no BOM) — probe only
+        if (IsValidUtf8(probe))
             return new(new UTF8Encoding(false), "UTF-8", false);
 
         // 3. UTF-16LE without BOM (NUL-heavy byte pattern, would otherwise mangle as GBK)
-        if (LooksLikeUtf16Le(bytes))
+        if (LooksLikeUtf16Le(probe))
             return new(Encoding.Unicode, "UTF-16LE", false);
 
         // 4. GBK fallback (best effort for other non-UTF-8 text)

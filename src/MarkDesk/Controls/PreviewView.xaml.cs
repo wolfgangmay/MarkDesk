@@ -43,6 +43,7 @@ public partial class PreviewView : UserControl, IDisposable
     public async Task UpdateAsync(string html, string? documentFolder)
     {
         LoadingHint.Visibility = _initialized ? Visibility.Collapsed : Visibility.Visible;
+        WebView.Visibility = Visibility.Visible;
 
         if (_initialized)
         {
@@ -298,6 +299,17 @@ public partial class PreviewView : UserControl, IDisposable
         {
             // WebView2 temporarily unavailable; zoom reapplied on next render.
         }
+    }
+
+    /// <summary>
+    /// Large-file mode placeholder: hides the WebView and shows a message in
+    /// the hint area. The next successful UpdateAsync restores the preview.
+    /// </summary>
+    public void ShowPlaceholder(string message)
+    {
+        WebView.Visibility = Visibility.Collapsed;
+        LoadingHint.Text = message;
+        LoadingHint.Visibility = Visibility.Visible;
     }
 
     private void EnsureFolderMapping(string? folder)

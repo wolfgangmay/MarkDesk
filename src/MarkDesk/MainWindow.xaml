@@ -266,6 +266,15 @@
             <StatusBarItem>
                 <TextBlock x:Name="ZoomLabel" Text="100%" />
             </StatusBarItem>
+            <Separator />
+            <StatusBarItem>
+                <StackPanel Orientation="Horizontal"
+                            Visibility="{Binding OpenProgressText, Converter={StaticResource NullToVisibility}}">
+                    <ProgressBar Style="{StaticResource ThemedProgressBar}" IsIndeterminate="True"
+                                 Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding OpenProgressText}" Foreground="{DynamicResource MutedBrush}" />
+                </StackPanel>
+            </StatusBarItem>
             <StatusBarItem DockPanel.Dock="Right" HorizontalAlignment="Right">
                 <TextBlock x:Name="PreviewStatus" Text="Preview: idle" Foreground="{DynamicResource MutedBrush}" />
             </StatusBarItem>

@@ -8,39 +8,53 @@
                        Foreground="{DynamicResource MutedBrush}"
                        Margin="12,16,12,0" VerticalAlignment="Top" TextWrapping="Wrap"
                        Visibility="Collapsed" />
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <ItemsControl x:Name="List" Margin="4,8">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Button Click="Row_Click" Cursor="Hand" Focusable="False"
-                                    Margin="{Binding Indent}" Padding="8,4" HorizontalAlignment="Stretch"
-                                    HorizontalContentAlignment="Left"
-                                    Background="Transparent" BorderThickness="0"
-                                    Tag="{Binding}">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
-                                                CornerRadius="4" Padding="{TemplateBinding Padding}">
-                                            <TextBlock Text="{Binding Text}" TextTrimming="CharacterEllipsis"
-                                                       Foreground="{TemplateBinding Foreground}"
-                                                       ToolTip="{Binding Text}" />
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}" />
-                                            </Trigger>
-                                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
-                                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentSoftBrush}" />
-                                                <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
-                                            </DataTrigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+<ListBox x:Name="List" Margin="4,8" BorderThickness="0" Background="Transparent"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     VirtualizingStackPanel.IsVirtualizing="True"
+                     VirtualizingStackPanel.VirtualizationMode="Recycling">
+                <ListBox.ItemContainerStyle>
+                    <Style TargetType="ListBoxItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ListBoxItem">
+                                    <ContentPresenter />
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </ListBox.ItemContainerStyle>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Button Click="Row_Click" Cursor="Hand" Focusable="False"
+                                Margin="{Binding Indent}" Padding="8,4" HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Left"
+                                Background="Transparent" BorderThickness="0"
+                                Tag="{Binding}">
+                            <Button.Template>
+                                <ControlTemplate TargetType="Button">
+                                    <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                            CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                        <TextBlock Text="{Binding Text}" TextTrimming="CharacterEllipsis"
+                                                   Foreground="{TemplateBinding Foreground}"
+                                                   ToolTip="{Binding Text}" />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}" />
+                                        </Trigger>
+                                        <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+                                            <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+                                        </DataTrigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Button.Template>
+                        </Button>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
         </Grid>
     </Border>
 </UserControl>

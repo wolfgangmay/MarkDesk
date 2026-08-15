@@ -10,11 +10,24 @@ public partial class App : Application
 {
     public static IServiceProvider Services { get; private set; } = null!;
 
+    private static readonly string CrashLogPath =
+        Path.Combine(Path.GetTempPath(), "MarkDesk-crash.log");
+
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
         RegisterEncodingProviders();
+
+        DispatcherUnhandledException += (_, args) =>
+        {
+            WriteCrashLog("DispatcherUnhandledException", args.Exception);
+            args.Handled = false;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            WriteCrashLog("AppDomain.UnhandledException", args.ExceptionObject as Exception);
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+            WriteCrashLog("UnobservedTaskException", args.Exception);
 
         Services = ConfigureServices();
 
@@ -23,6 +36,49 @@ public partial class App : Application
 
         if (e.Args.Length > 0 && File.Exists(e.Args[0]))
             mainWindow.ViewModel.OpenPath(e.Args[0]);
+    }
+
+    private static void WriteCrashLog(string source, Exception? ex)
+    {
+        if (ex == null)
+            return;
+        try
+        {
+            File.AppendAllText(CrashLogPath,
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {source}\n{ex}\n{GetStateSnapshot()}\n");
+        }
+        catch
+        {
+            // best effort: never take the app down logging a crash
+        }
+    }
+
+    private static string GetStateSnapshot()
+    {
+        try
+        {
+            var vm = Services?.GetService<MainViewModel>();
+            if (vm == null)
+                return "";
+            var sb = new StringBuilder();
+            sb.Append("  State: Path=").Append(vm.FilePath ?? "(none)");
+            sb.Append(" Tier=").Append(vm.DocumentTier);
+            sb.Append(" ViewMode=").Append(vm.ViewMode);
+            sb.Append(" Dirty=").Append(vm.IsDirty);
+            sb.Append(" Progress=").Append(vm.OpenProgressText ?? "(none)");
+            var editor = Services?.GetService<MainWindow>()?.Editor;
+            if (editor?.Editor?.Document != null)
+            {
+                sb.Append(" Lines=").Append(editor.Editor.Document.LineCount);
+                sb.Append(" Chars=").Append(editor.Editor.Document.TextLength);
+            }
+            sb.AppendLine();
+            return sb.ToString();
+        }
+        catch
+        {
+            return "";
+        }
     }
 
     private static IServiceProvider ConfigureServices()

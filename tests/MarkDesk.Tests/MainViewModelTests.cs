@@ -60,7 +60,7 @@ public class MainViewModelTests
     }
 
     [Fact]
-    public void OpenPath_LoadsTextAndEncoding()
+    public async Task OpenPath_LoadsTextAndEncoding()
     {
         var path = Path.Combine(Path.GetTempPath(), "MarkDeskOpenPath_" + Guid.NewGuid().ToString("N") + ".md");
         File.WriteAllText(path, "placeholder");
@@ -72,7 +72,7 @@ public class MainViewModelTests
 
         try
         {
-            vm.OpenPath(path);
+            await vm.LoadFromAsync(path);
 
             Assert.Equal("# Hello", vm.DocumentText);
             Assert.Equal(path, vm.FilePath);

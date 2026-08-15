@@ -290,6 +290,13 @@ public partial class MarkdownEditor : UserControl
         set => SetValue(WordWrapProperty, value);
     }
 
+    /// <summary>Large-file mode: browsing only, no edits.</summary>
+    public bool IsReadOnly
+    {
+        get => Editor.IsReadOnly;
+        set => Editor.IsReadOnly = value;
+    }
+
     public int CaretLine => Editor.TextArea.Caret.Line;
     public int CaretColumn => Editor.TextArea.Caret.Column;
 
@@ -318,6 +325,39 @@ public partial class MarkdownEditor : UserControl
         finally
         {
             _suppress = false;
+        }
+    }
+
+    /// <summary>
+    /// Loads a pre-built document (large-file mode): the rope structure is
+    /// built off the UI thread, so this swaps only a reference — far cheaper
+    /// than assigning Document.Text on the UI thread.
+    /// </summary>
+    public void LoadDocument(ICSharpCode.AvalonEdit.Document.TextDocument document)
+    {
+        _suppress = true;
+        try
+        {
+            Editor.Document = document;
+            SetCurrentValue(DocumentTextProperty, document.Text);
+        }
+        finally
+        {
+            _suppress = false;
+        }
+    }
+
+    /// <summary>Syntax highlighting off for large-file mode (3+ MB documents).</summary>
+    public void SetHighlighting(bool enabled)
+    {
+        if (enabled)
+        {
+            if (Editor.SyntaxHighlighting == null)
+                LoadMarkdownHighlighting();
+        }
+        else
+        {
+            Editor.SyntaxHighlighting = null;
         }
     }
 
