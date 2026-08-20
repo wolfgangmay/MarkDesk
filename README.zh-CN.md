@@ -2,7 +2,7 @@
 
 一个面向 Windows 的轻量级 Markdown 查看器与编辑器。打开 `.md`、阅读、编辑、保存,导出 PDF —— 仅此而已。
 
-![Version](https://img.shields.io/badge/version-1.0.1-blue)
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Downloads](https://img.shields.io/github/downloads/wolfgangmay/MarkDesk/total)
