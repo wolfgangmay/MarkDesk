@@ -86,6 +86,85 @@ public class MainViewModelTests
     }
 
     [Fact]
+    public async Task LoadFromAsync_FirstOpen_GoesToDefaultViewMode()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "MarkDeskViewMode_" + Guid.NewGuid().ToString("N") + ".md");
+        File.WriteAllText(path, "x");
+        var file = new FakeFileService { OnLoad = _ => new DocumentLoadResult("x", new DetectedEncoding(new UTF8Encoding(false), "UTF-8", false)) };
+        var vm = Create(file);
+
+        try
+        {
+            vm.ViewMode = ViewMode.Edit;
+
+            await vm.LoadFromAsync(path, keepViewMode: false);
+
+            Assert.Equal(ViewMode.Preview, vm.ViewMode); // default from settings
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task LoadFromAsync_TreeClick_KeepsCurrentViewMode()
+    {
+        var path = Path.Combine(Path.GetTempPath(), "MarkDeskViewMode_" + Guid.NewGuid().ToString("N") + ".md");
+        File.WriteAllText(path, "x");
+        var file = new FakeFileService { OnLoad = _ => new DocumentLoadResult("x", new DetectedEncoding(new UTF8Encoding(false), "UTF-8", false)) };
+        var vm = Create(file);
+
+        try
+        {
+            vm.ViewMode = ViewMode.Edit;
+
+            await vm.LoadFromAsync(path, keepViewMode: true);
+
+            Assert.Equal(ViewMode.Edit, vm.ViewMode);
+        }
+        finally
+        {
+            if (File.Exists(path)) File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public async Task SwitchingFromLargeToSmallFile_UpdatesWordCountAndTier()
+    {
+        // Regression: DocumentText was assigned before DocumentTier, so the
+        // word-count gate (skip in Large tier) still saw the PREVIOUS
+        // document's tier — a small file opened after a large one kept the
+        // stale seven-digit count (and large files were counted on the UI
+        // thread).
+        var big = Path.Combine(Path.GetTempPath(), "MarkDeskBig_" + Guid.NewGuid().ToString("N") + ".md");
+        var small = Path.Combine(Path.GetTempPath(), "MarkDeskSmall_" + Guid.NewGuid().ToString("N") + ".md");
+        File.WriteAllBytes(big, new byte[6 * 1024 * 1024]); // > 5 MB → Large
+        File.WriteAllText(small, "one two three four");
+        var file = new FakeFileService
+        {
+            OnLoad = p => new DocumentLoadResult(
+                p == big ? new string('x', 6 * 1024 * 1024) : "one two three four",
+                new DetectedEncoding(new UTF8Encoding(false), "UTF-8", false))
+        };
+        var vm = Create(file);
+
+        try
+        {
+            await vm.LoadFromAsync(big);
+            await vm.LoadFromAsync(small);
+
+            Assert.Equal(DocumentTier.RealTime, vm.DocumentTier);
+            Assert.Equal(4, vm.WordCount);
+        }
+        finally
+        {
+            if (File.Exists(big)) File.Delete(big);
+            if (File.Exists(small)) File.Delete(small);
+        }
+    }
+
+    [Fact]
     public void Typing_SetsDirty_AndUpdatesWordCount()
     {
         var vm = Create();

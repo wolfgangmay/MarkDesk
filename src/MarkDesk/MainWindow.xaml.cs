@@ -41,6 +41,9 @@ public partial class MainWindow : Window
     private bool _previewVisible;
     private bool _tabbedShowPreview;
     private bool _outlineWanted = true;
+    private double _outlineWidth = 220;
+    private bool _filesWanted = true;
+    private double _filesWidth = 240;
 
     public MainViewModel ViewModel { get; }
 
@@ -73,7 +76,15 @@ public partial class MainWindow : Window
             var s = App.Services.GetRequiredService<Services.ISettingsService>().Current;
             _outlineWanted = s.OutlineVisible;
             OutlineToggle.IsChecked = _outlineWanted;
-            OutlineCol.Width = new GridLength(Math.Clamp(s.OutlineWidthPx, 160, 480));
+            _outlineWidth = Math.Clamp(s.OutlineWidthPx, 160, 480);
+            OutlineCol.Width = new GridLength(_outlineWidth);
+            _filesWanted = s.FilesPanelVisible;
+            FilesToggle.IsChecked = _filesWanted;
+            _filesWidth = Math.Clamp(s.FilesPanelWidthPx, 160, 480);
+            FilesCol.Width = new GridLength(_filesWidth);
+            Files.SetRoot(
+                ViewModel.FilePath != null ? Path.GetDirectoryName(ViewModel.FilePath) : null,
+                ViewModel.FilePath);
             ApplyLayout();
             ApplyLargeFileMode();
             UpdateOutline();
@@ -95,6 +106,10 @@ public partial class MainWindow : Window
         };
         Outline.HeadingClicked += OnOutlineHeadingClicked;
         OutlineSplitter.DragCompleted += OutlineSplitter_DragCompleted;
+        FilesSplitter.DragCompleted += FilesSplitter_DragCompleted;
+        // Tree clicks keep the current view mode (only the launch double-click
+        // opens into the default preview mode).
+        Files.OpenFileRequested += path => ViewModel.OpenPath(path, keepViewMode: true);
         Preview.SourceLineRequested += OnPreviewSourceLineRequested;
         _fileWatcher.ExternalChanged += (_, _) => Dispatcher.BeginInvoke(OnExternalChange);
         Closing += OnClosing;
@@ -149,6 +164,9 @@ public partial class MainWindow : Window
         {
             _fileWatcher.Watch(ViewModel.FilePath);
             ConsumePendingDocument();
+            Files.SetRoot(
+                ViewModel.FilePath != null ? Path.GetDirectoryName(ViewModel.FilePath) : null,
+                ViewModel.FilePath);
         }
         else if (e.PropertyName == nameof(ViewModel.DocumentTier))
             ApplyLargeFileMode();
@@ -334,6 +352,14 @@ public partial class MainWindow : Window
         var star = new GridLength(1, GridUnitType.Star);
         var zero = new GridLength(0);
 
+        // The files panel is an independent navigation aid: visible in every
+        // view mode (Edit / Split / Preview) whenever the user wants it.
+        var showFiles = _filesWanted;
+        ApplyPanelColumn(FilesCol, showFiles, ref _filesWidth);
+        FilesSplitterCol.Width = showFiles ? GridLength.Auto : zero;
+        FilesSplitter.Visibility = showFiles ? Visibility.Visible : Visibility.Collapsed;
+        Files.Visibility = showFiles ? Visibility.Visible : Visibility.Collapsed;
+
         EditorCol.Width = showEditor ? star : zero;
         PreviewCol.Width = showPreview ? star : zero;
         var both = showEditor && showPreview;
@@ -346,13 +372,34 @@ public partial class MainWindow : Window
         // in Edit/Split modes it jumps to the source, in Preview-only mode it
         // scrolls the rendered document (same data-line map).
         var showOutline = _outlineWanted && (showEditor || showPreview);
-        OutlineCol.Width = showOutline
-            ? new GridLength(Math.Clamp(OutlineCol.Width.Value, 160, 480))
-            : zero;
+        ApplyPanelColumn(OutlineCol, showOutline, ref _outlineWidth);
         OutlineSplitterCol.Width = showOutline ? GridLength.Auto : zero;
         OutlineSplitter.Visibility = showOutline ? Visibility.Visible : Visibility.Collapsed;
         Outline.Visibility = showOutline ? Visibility.Visible : Visibility.Collapsed;
         OutlineToggle.IsEnabled = showEditor || showPreview;
+    }
+
+    /// <summary>
+    /// Shows/hides a side-panel column. MinWidth must drop to 0 while hidden:
+    /// the 160 px minimum would otherwise keep an empty strip reserved beside
+    /// the collapsed splitter. The width is remembered and restored so the
+    /// toggle round-trips without losing the user's drag.
+    /// </summary>
+    private static void ApplyPanelColumn(ColumnDefinition col, bool show, ref double rememberedWidth)
+    {
+        if (show)
+        {
+            if (col.Width.Value < 160)
+                col.Width = new GridLength(Math.Clamp(rememberedWidth, 160, 480));
+            col.MinWidth = 160;
+        }
+        else
+        {
+            if (col.Width.Value >= 160)
+                rememberedWidth = col.Width.Value;
+            col.MinWidth = 0;
+            col.Width = new GridLength(0);
+        }
     }
 
     private void UpdateOutline()
@@ -401,12 +448,47 @@ public partial class MainWindow : Window
         var settings = App.Services.GetRequiredService<Services.ISettingsService>();
         var s = settings.Current;
         s.OutlineVisible = _outlineWanted;
-        s.OutlineWidthPx = (int)Math.Clamp(OutlineCol.Width.Value, 160, 480);
+        s.OutlineWidthPx = (int)Math.Clamp(_outlineWidth, 160, 480);
         settings.Save();
     }
 
-    private void OutlineSplitter_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e) =>
+    private void OutlineSplitter_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+    {
+        if (OutlineCol.Width.Value >= 160)
+            _outlineWidth = OutlineCol.Width.Value;
         PersistOutlineLayout();
+    }
+
+    private void FilesToggle_Click(object sender, RoutedEventArgs e)
+    {
+        _filesWanted = FilesToggle.IsChecked == true;
+        ApplyLayout();
+        PersistFilesLayout();
+    }
+
+    private void ToggleFiles()
+    {
+        _filesWanted = !_filesWanted;
+        FilesToggle.IsChecked = _filesWanted;
+        ApplyLayout();
+        PersistFilesLayout();
+    }
+
+    private void PersistFilesLayout()
+    {
+        var settings = App.Services.GetRequiredService<Services.ISettingsService>();
+        var s = settings.Current;
+        s.FilesPanelVisible = _filesWanted;
+        s.FilesPanelWidthPx = (int)Math.Clamp(_filesWidth, 160, 480);
+        settings.Save();
+    }
+
+    private void FilesSplitter_DragCompleted(object sender, System.Windows.Controls.Primitives.DragCompletedEventArgs e)
+    {
+        if (FilesCol.Width.Value >= 160)
+            _filesWidth = FilesCol.Width.Value;
+        PersistFilesLayout();
+    }
 
     private void OnOutlineHeadingClicked(int line)
     {
@@ -508,6 +590,8 @@ public partial class MainWindow : Window
         UpdateDebounceForTier();
         if (large && _previewVisible)
             RenderNow();
+        else if (!large && !_previewVisible && PreviewStatus.Text != "Exporting PDF…")
+            PreviewStatus.Text = "Preview: idle";
     }
 
     /// <summary>Swaps in the pre-built rope document (large-file loading).</summary>
@@ -545,6 +629,12 @@ public partial class MainWindow : Window
         {
             e.Handled = true;
             ToggleOutline();
+            return;
+        }
+        if (e.Key == Key.F8 && Keyboard.Modifiers == ModifierKeys.None)
+        {
+            e.Handled = true;
+            ToggleFiles();
             return;
         }
         if (e.Key == Key.V && Keyboard.Modifiers == ModifierKeys.Control && Clipboard.ContainsImage())

@@ -1,0 +1,153 @@
+<UserControl x:Class="MarkDesk.Controls.FilesPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <Style x:Key="PanelIconButton" TargetType="Button">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Foreground" Value="{DynamicResource ContentBrush}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PressedBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.35" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!--  Themed TreeViewItem: every visual state (hover, selected,
+              expanded arrow) binds to the app brushes so the panel renders
+              correctly in both light and dark themes.  -->
+        <Style x:Key="FilesTreeItem" TargetType="TreeViewItem">
+            <Setter Property="Foreground" Value="{DynamicResource ContentBrush}" />
+            <Setter Property="IsExpanded" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TreeViewItem">
+                        <StackPanel>
+                            <Border x:Name="Bd" Background="Transparent" CornerRadius="4"
+                                    MinHeight="26" Padding="2,1">
+                                <StackPanel Orientation="Horizontal">
+                                    <Grid Width="18" Margin="0,0,2,0" VerticalAlignment="Center">
+                                        <!--  Expand arrow: folders only; files get a dash
+                                              placeholder below so the labels stay aligned.  -->
+                                        <ToggleButton x:Name="Expander" Focusable="False" ClickMode="Press"
+                                                      IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"
+                                                      IsTabStop="False">
+                                            <ToggleButton.Template>
+                                                <ControlTemplate TargetType="ToggleButton">
+                                                    <Border Background="Transparent" Width="16" Height="16">
+                                                        <Path x:Name="Arrow" Data="M 4 2 L 12 8 L 4 14 Z"
+                                                              Fill="{DynamicResource MutedBrush}"
+                                                              HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                              RenderTransformOrigin="0.5,0.5">
+                                                            <Path.RenderTransform>
+                                                                <RotateTransform Angle="0" />
+                                                            </Path.RenderTransform>
+                                                        </Path>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsChecked" Value="True">
+                                                            <Setter TargetName="Arrow" Property="RenderTransform">
+                                                                <Setter.Value>
+                                                                    <RotateTransform Angle="90" />
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                            <Setter TargetName="Arrow" Property="Fill"
+                                                                    Value="{DynamicResource ContentBrush}" />
+                                                        </Trigger>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="Arrow" Property="Fill"
+                                                                    Value="{DynamicResource ContentBrush}" />
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </ToggleButton.Template>
+                                        </ToggleButton>
+                                        <TextBlock x:Name="FileDash" Text="—" Visibility="Collapsed"
+                                                   FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Foreground="{DynamicResource MutedBrush}" />
+                                    </Grid>
+                                    <!--  Folder/file glyph: Segoe MDL2 folder (E8B7) is
+                                          the default; files swap in the document glyph
+                                          (E8A5). Colors follow the app brushes so both
+                                          themes render correctly.  -->
+                                    <TextBlock x:Name="Icon" FontFamily="Segoe MDL2 Assets" FontSize="14"
+                                               Text="&#xE8B7;" Margin="0,0,5,0" VerticalAlignment="Center"
+                                               Foreground="{DynamicResource AccentTextBrush}" />
+                                    <TextBlock x:Name="Label" Text="{TemplateBinding Header}"
+                                               Foreground="{TemplateBinding Foreground}"
+                                               TextTrimming="CharacterEllipsis" MaxWidth="420"
+                                               ToolTip="{Binding Tag.FullPath, RelativeSource={RelativeSource TemplatedParent}}"
+                                               VerticalAlignment="Center" />
+                                </StackPanel>
+                            </Border>
+                            <ItemsPresenter x:Name="ItemsHost" Margin="18,0,0,0" />
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsExpanded" Value="False">
+                                <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed" />
+                            </Trigger>
+                            <!--  Files: swap the folder glyph for a document glyph and
+                                  hide the expand arrow (dash placeholder instead).  -->
+                            <DataTrigger Binding="{Binding Tag.IsDirectory, RelativeSource={RelativeSource Self}}" Value="False">
+                                <Setter TargetName="Icon" Property="Text" Value="&#xE8A5;" />
+                                <Setter TargetName="Icon" Property="Foreground" Value="{DynamicResource MutedBrush}" />
+                                <Setter TargetName="Expander" Property="Visibility" Value="Collapsed" />
+                                <Setter TargetName="FileDash" Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource HoverBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+                                <Setter TargetName="Label" Property="Foreground" Value="{DynamicResource AccentTextBrush}" />
+                                <Setter TargetName="Label" Property="FontWeight" Value="SemiBold" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Border Background="{DynamicResource WindowBgBrush}">
+        <DockPanel>
+            <Border DockPanel.Dock="Top" Background="{DynamicResource BarBgBrush}"
+                    BorderBrush="{DynamicResource DividerBrush}" BorderThickness="0,0,0,1" Padding="6,4">
+                <DockPanel>
+                    <Button x:Name="UpButton" DockPanel.Dock="Left" Style="{StaticResource PanelIconButton}"
+                            Content="&#xE72B;" ToolTip="Go to parent folder" Click="UpButton_Click" />
+                    <Button DockPanel.Dock="Right" Style="{StaticResource PanelIconButton}"
+                            Content="&#xE72C;" ToolTip="Refresh" Click="RefreshButton_Click" />
+                    <TextBlock x:Name="RootPath" VerticalAlignment="Center" Margin="6,0"
+                               Foreground="{DynamicResource MutedBrush}" FontSize="11"
+                               TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+                </DockPanel>
+            </Border>
+            <TreeView x:Name="Tree" Margin="4,6" BorderThickness="0" Background="Transparent"
+                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                      ItemContainerStyle="{StaticResource FilesTreeItem}"
+                      TreeViewItem.Expanded="OnItemExpanded"
+                      TreeViewItem.Selected="OnItemSelected" />
+        </DockPanel>
+    </Border>
+</UserControl>

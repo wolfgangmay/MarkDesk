@@ -232,7 +232,7 @@ public partial class MainViewModel : ObservableObject
             await LoadFromAsync(path);
     }
 
-    public void OpenPath(string path)
+    public void OpenPath(string path, bool keepViewMode = false)
     {
         if (!File.Exists(path))
             return;
@@ -242,7 +242,7 @@ public partial class MainViewModel : ObservableObject
         path = Path.GetFullPath(path);
         if (!EnsureSaved())
             return;
-        _ = LoadFromAsync(path);
+        _ = LoadFromAsync(path, keepViewMode);
     }
 
     public async Task ReloadCurrentAsync()
@@ -303,7 +303,7 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(IsPreviewActive));
     }
 
-    public async Task LoadFromAsync(string path)
+    public async Task LoadFromAsync(string path, bool keepViewMode = false)
     {
         var info = new FileInfo(path);
         if (info.Exists && DocumentTierResolver.ForBytes(info.Length) == DocumentTier.Large)
@@ -327,9 +327,14 @@ public partial class MainViewModel : ObservableObject
             SetDocument(result.Text, path, result.Encoding, document);
             OpenProgressText = null;
             AddRecent(path);
-            // Large-file mode has no preview: force the editor, overriding the
-            // user's default view preference (which may be Preview).
-            ViewMode = DocumentTier == DocumentTier.Large ? ViewMode.Edit : ViewMode.Preview;
+            // Large-file mode has no preview: always force the editor,
+            // overriding the user's view. Otherwise the first document
+            // (double-click launch / explicit open) goes to the default view
+            // while later opens from the files panel keep the current mode.
+            if (DocumentTier == DocumentTier.Large)
+                ViewMode = ViewMode.Edit;
+            else if (!keepViewMode)
+                ViewMode = _settingsService.Current.DefaultViewMode;
         }
         catch (Exception ex)
         {
@@ -372,6 +377,17 @@ public partial class MainViewModel : ObservableObject
         _isLoading = true;
         try
         {
+            // Tier BEFORE DocumentText: the word-count update triggered by
+            // DocumentText checks the tier (skips the multi-MB split in
+            // large-file mode). With the old order a newly opened LARGE
+            // document was word-counted on the UI thread, and switching from
+            // a large file to a normal one kept the stale count (tier still
+            // Large when the text changed).
+            DocumentBytes = path != null && File.Exists(path)
+                ? new FileInfo(path).Length
+                : System.Text.Encoding.UTF8.GetByteCount(text);
+            DocumentTier = DocumentTierResolver.ForBytes(DocumentBytes);
+
             // PendingDocument first, then FilePath: MainWindow consumes the
             // pre-built rope on the FilePath change and syncs DocumentText.
             // Assigning DocumentText first would make MarkdownEditor do a
@@ -383,10 +399,6 @@ public partial class MainViewModel : ObservableObject
             _currentEncoding = encoding;
             Encoding = encoding.DisplayName;
             IsDirty = false;
-            DocumentBytes = path != null && File.Exists(path)
-                ? new FileInfo(path).Length
-                : System.Text.Encoding.UTF8.GetByteCount(text);
-            DocumentTier = DocumentTierResolver.ForBytes(DocumentBytes);
         }
         finally
         {

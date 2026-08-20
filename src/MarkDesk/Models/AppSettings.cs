@@ -56,6 +56,8 @@ public sealed class AppSettings
     public bool TypingAssists { get; set; } = true;
     public bool OutlineVisible { get; set; } = true;
     public int OutlineWidthPx { get; set; } = 220;
+    public bool FilesPanelVisible { get; set; } = true;
+    public int FilesPanelWidthPx { get; set; } = 240;
     public List<string> RecentFiles { get; set; } = new();
 
     public PdfMargins PdfMargins => new PdfMargins(PdfMarginTopMm, PdfMarginBottomMm, PdfMarginLeftMm, PdfMarginRightMm).Clamped();

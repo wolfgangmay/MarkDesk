@@ -31,11 +31,23 @@ public sealed class PreviewTemplate
 :root {{
   --fg:#24292f; --bg:#ffffff; --border:#d0d7de; --muted:#57606a;
   --code-bg:#f6f8fa; --link:#0969da; --quote:#6e7781; --quote-border:#d0d7de;
+  --scroll-thumb:#c8c8c8; --scroll-thumb-hover:#8a8a8a;
 }}
 html[data-theme=""dark""] {{
   --fg:#e6edf3; --bg:#1e1e1e; --border:#30363d; --muted:#8b949e;
   --code-bg:#161b22; --link:#58a6ff; --quote:#8b949e; --quote-border:#30363d;
+  --scroll-thumb:#4a4a52; --scroll-thumb-hover:#6b6b75;
 }}
+/* WebView2 ships native Chromium scrollbars (with arrow buttons) unless the
+   page styles them; match the themed WPF scrollbars used by the other panes. */
+::-webkit-scrollbar {{ width:10px; height:10px; }}
+::-webkit-scrollbar-track {{ background:transparent; }}
+::-webkit-scrollbar-thumb {{
+  background:var(--scroll-thumb); border-radius:5px;
+  border:2px solid var(--bg);
+}}
+::-webkit-scrollbar-thumb:hover {{ background:var(--scroll-thumb-hover); }}
+::-webkit-scrollbar-corner {{ background:transparent; }}
 * {{ box-sizing:border-box; }}
 body {{
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;

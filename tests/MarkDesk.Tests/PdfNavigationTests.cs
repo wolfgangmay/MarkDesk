@@ -71,6 +71,9 @@ public class PdfNavigationTests
     private static string AssetsFolder => Path.GetFullPath(Path.Combine(
         AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "MarkDesk", "Assets", "web"));
 
+    private static string SamplesFolder => Path.GetFullPath(Path.Combine(
+        AppContext.BaseDirectory, "..", "..", "..", "..", "..", "samples"));
+
     private static void RunOnSta(Func<Task> body)
     {
         Exception? failure = null;
@@ -201,6 +204,54 @@ public class PdfNavigationTests
                 var magic = new string(reader.ReadChars(5));
                 Assert.Equal("%PDF-", magic);
                 Console.WriteLine($"PDF produced: {info.Length} bytes, starts with {magic}");
+
+                try { File.Delete(pdfPath); } catch { /* Chromium may still hold the handle briefly */ }
+            }
+            finally
+            {
+                wv.Dispose();
+                win.Close();
+            }
+        });
+
+    /// <summary>
+    /// AGENTS.md: any PreviewTemplate.cs change must be verified by exporting
+    /// a PDF from a real samples/pdf-test-*.md document — this runs the full
+    /// pipeline (renderer + template + WebView2 print) on the CJK sample.
+    /// </summary>
+    [Fact]
+    public void PrintToPdf_RealCjkSample_ProducesValidPdf() =>
+        RunOnSta(async () =>
+        {
+            var mdPath = Path.Combine(SamplesFolder, "pdf-test-cjk.md");
+            Assert.True(File.Exists(mdPath), "sample missing: " + mdPath);
+
+            var win = new Window { Width = 640, Height = 480 };
+            var wv = await CreateWebViewAsync(win);
+            try
+            {
+                var markdown = await File.ReadAllTextAsync(mdPath);
+                var bodyHtml = new MarkdownRenderer().RenderToHtml(markdown);
+                var html = new PreviewTemplate().Build(bodyHtml);
+                Assert.True(await NavigateTempFileAsync(wv, html), "navigation failed");
+                await Task.Delay(1500);
+
+                var pdfPath = Path.Combine(Path.GetTempPath(), "MarkDeskTests",
+                    "sample-" + Guid.NewGuid().ToString("N") + ".pdf");
+                var settings = wv.CoreWebView2.Environment.CreatePrintSettings();
+                settings.ShouldPrintBackgrounds = true;
+                settings.ShouldPrintHeaderAndFooter = false;
+                settings.PageWidth = 8.27;
+                settings.PageHeight = 11.69;
+                settings.MarginTop = settings.MarginBottom = settings.MarginLeft = settings.MarginRight = 0.5;
+                var ok = await wv.CoreWebView2.PrintToPdfAsync(pdfPath, settings);
+                Assert.True(ok, "PrintToPdfAsync returned false");
+
+                var info = new FileInfo(pdfPath);
+                Assert.True(info.Exists && info.Length > 10_000, "sample PDF too small: " + info.Length);
+                using var reader = new BinaryReader(File.OpenRead(pdfPath));
+                Assert.Equal("%PDF-", new string(reader.ReadChars(5)));
+                Console.WriteLine($"CJK sample PDF: {info.Length} bytes");
 
                 try { File.Delete(pdfPath); } catch { /* Chromium may still hold the handle briefly */ }
             }
