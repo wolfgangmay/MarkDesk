@@ -34,6 +34,18 @@ public sealed class MarkdownRenderer : IMarkdownRenderer
     public string RenderToHtml(string markdown, CancellationToken token) =>
         RenderWithSourceLines(markdown ?? string.Empty, token);
 
+    /// <summary>
+    /// Renders a document returned by <see cref="Parse"/> — the same syntax
+    /// tree can then feed both the preview HTML and the outline without a
+    /// second full parse.
+    /// </summary>
+    public string RenderToHtml(MarkdownDocument document, CancellationToken token)
+    {
+        AddSourceLines(document);
+        token.ThrowIfCancellationRequested();
+        return document.ToHtml(Pipeline);
+    }
+
     /// <summary>Syntax tree parsed with the same pipeline as the preview.</summary>
     public MarkdownDocument Parse(string markdown) =>
         Markdown.Parse(markdown ?? string.Empty, Pipeline);
@@ -48,6 +60,13 @@ public sealed class MarkdownRenderer : IMarkdownRenderer
     {
         var document = Markdown.Parse(markdown, Pipeline);
         token.ThrowIfCancellationRequested();
+        AddSourceLines(document);
+        token.ThrowIfCancellationRequested();
+        return document.ToHtml(Pipeline);
+    }
+
+    private static void AddSourceLines(MarkdownDocument document)
+    {
         foreach (var block in document.Descendants<Block>())
         {
             var attrs = block.GetAttributes();
@@ -56,7 +75,5 @@ public sealed class MarkdownRenderer : IMarkdownRenderer
                 attrs.Properties.Add(new KeyValuePair<string, string?>("data-line",
                     (block.Line + 1).ToString(CultureInfo.InvariantCulture)));
         }
-        token.ThrowIfCancellationRequested();
-        return document.ToHtml(Pipeline);
     }
 }

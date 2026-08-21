@@ -18,6 +18,9 @@ publish/
 *.userprefs
 *.cache
 
+## CodeGraph local index
+.codegraph/
+
 ## Build results
 [Dd]ebug/
 [Rr]elease/
@@ -39,6 +42,7 @@ AppPackages/
 *.tmp
 *.bak
 session.txt
+TestResults/
 
 ## Local-only documents (not for the repo)
 req.md

@@ -37,7 +37,7 @@ public partial class App : Application
         mainWindow.Show();
 
         if (e.Args.Length > 0 && File.Exists(e.Args[0]))
-            mainWindow.ViewModel.OpenPath(e.Args[0]);
+            _ = mainWindow.ViewModel.OpenPathAsync(e.Args[0]);
     }
 
     protected override void OnExit(ExitEventArgs e)

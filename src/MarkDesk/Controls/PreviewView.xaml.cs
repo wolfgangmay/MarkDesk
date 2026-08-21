@@ -13,11 +13,10 @@ public partial class PreviewView : UserControl, IDisposable
     private const string VirtualHost = "mdlocal";
     private const string AssetsHost = "mdassets";
 
-    // WebView2's NavigateToString throws E_INVALIDARG ("Value does not fall
-    // within the expected range") on very large HTML strings (WebView2Feedback
-    // #1355), so navigation always goes through a temp file. HTML bigger than
-    // this would also make the print-layout pass (querySelectorAll over the
-    // whole DOM) take minutes, so it is skipped for those documents.
+    // Navigation always serves HTML through WebResourceRequested (in-memory;
+    // NavigateToString breaks on large HTML — WebView2Feedback #1355). HTML
+    // bigger than this would also make the print-layout pass (querySelectorAll
+    // over the whole DOM) take minutes, so it is skipped for those documents.
     private const int LargeHtmlThreshold = 3_000_000;
 
     // Chromium gives no progress for PrintToPdfAsync; guard against a wedged
@@ -31,8 +30,7 @@ public partial class PreviewView : UserControl, IDisposable
     private bool _initialized;
     private Task _initTask = Task.CompletedTask;
     private readonly SemaphoreSlim _navigationLock = new(1, 1);
-    private double _previewZoom = 1.0;
-    private string? _lastTempFile;
+    private double _previewZoom;
 
     /// <summary>
     /// URI of the navigation this control itself initiated (the current
@@ -60,6 +58,9 @@ public partial class PreviewView : UserControl, IDisposable
     }
 
     public bool IsReady => _initialized;
+
+    /// <summary>True while a render navigation is applying (scroll sync pauses during it).</summary>
+    public bool IsNavigating => _navigationLock.CurrentCount == 0;
 
     public async Task UpdateAsync(string html, string? documentFolder)
     {
@@ -163,7 +164,14 @@ public partial class PreviewView : UserControl, IDisposable
 
             core.NavigationStarting += Starting;
             core.NavigationCompleted += Completed;
-            tempPath = await NavigateToTempFileAsync(core, html);
+
+            // Temp-file navigation (memory serving measured 2.5x slower —
+            // see ApplyAsync). Same rationale as the on-screen preview.
+            var dir = Path.Combine(Path.GetTempPath(), "MarkDesk");
+            Directory.CreateDirectory(dir);
+            tempPath = Path.Combine(dir, "print-" + Guid.NewGuid().ToString("N") + ".html");
+            await File.WriteAllTextAsync(tempPath, html, new UTF8Encoding(false));
+            core.Navigate(new Uri(tempPath).AbsoluteUri);
 
             var navigation = await Task.WhenAny(navDone.Task, Task.Delay(TimeSpan.FromSeconds(30)));
             if (navigation != navDone.Task)
@@ -211,30 +219,6 @@ public partial class PreviewView : UserControl, IDisposable
             try { if (tempPath != null) File.Delete(tempPath); } catch { }
             _printLock.Release();
         }
-    }
-
-    /// <summary>
-    /// Writes the HTML to a temp file and navigates to it instead of using
-    /// NavigateToString, which fails on large strings (WebView2Feedback #1355,
-    /// "Value does not fall within the expected range"). The template's
-    /// &lt;base href&gt; keeps all relative resources on the mdlocal/mdassets
-    /// virtual hosts, so file:// navigation renders identically. Returns the
-    /// temp path so the caller can clean it up.
-    /// </summary>
-    private static async Task<string> NavigateToTempFileAsync(CoreWebView2 core, string html)
-    {
-        var path = await WriteTempHtmlAsync(html);
-        core.Navigate(new Uri(path).AbsoluteUri);
-        return path;
-    }
-
-    private static async Task<string> WriteTempHtmlAsync(string html)
-    {
-        var dir = Path.Combine(Path.GetTempPath(), "MarkDesk");
-        Directory.CreateDirectory(dir);
-        var path = Path.Combine(dir, "html-" + Guid.NewGuid().ToString("N") + ".html");
-        await File.WriteAllTextAsync(path, html, new UTF8Encoding(false));
-        return path;
     }
 
     private Task EnsureInitializedAsync()
@@ -293,20 +277,27 @@ public partial class PreviewView : UserControl, IDisposable
         await _navigationLock.WaitAsync();
         try
         {
-            // Temp-file navigation instead of NavigateToString (see
-            // NavigateToTempFileAsync). The previous temp file is kept alive
-            // while its page is shown and only deleted on the next render.
+            // Temp-file navigation instead of NavigateToString (which fails on
+            // large HTML, WebView2Feedback #1355) AND instead of
+            // WebResourceRequested memory serving (measured 2.5x SLOWER on
+            // multi-MB pages: the response body crosses a COM/IStream boundary
+            // chunk by chunk, ~2 s for 6 MB, while file:// lets Chromium read
+            // the bytes natively). The previous temp file is kept alive while
+            // its page is shown and only deleted on the next render.
             try { if (_lastTempFile != null) File.Delete(_lastTempFile); } catch { }
-            var path = await WriteTempHtmlAsync(html);
+            var dir = Path.Combine(Path.GetTempPath(), "MarkDesk");
+            Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir, "html-" + Guid.NewGuid().ToString("N") + ".html");
+            await File.WriteAllTextAsync(path, html, new UTF8Encoding(false));
             _lastTempFile = path;
             // Tag our own navigation so OnPreviewNavigationStarting lets it
             // through: WebView2 sometimes reports host-initiated Navigate()
-            // as user-initiated (observed on the first navigation at startup),
-            // and at that moment Source is still about:blank, so the policy
-            // would misclassify the render navigation as external.
+            // as user-initiated (observed on the first navigation at startup).
             _programmaticNavigationUri = new Uri(path).AbsoluteUri;
             WebView.CoreWebView2.Navigate(_programmaticNavigationUri);
-            await WaitNavigationAsync();
+            // Surface navigation failures instead of silently proceeding.
+            if (!await WaitNavigationAsync())
+                throw new TimeoutException("Preview navigation timed out after 10 s.");
             await ApplyZoomAsync();
         }
         finally
@@ -315,7 +306,10 @@ public partial class PreviewView : UserControl, IDisposable
         }
     }
 
-    private async Task WaitNavigationAsync()
+    private string? _lastTempFile;
+
+    /// <summary>Waits for the current navigation; false = timed out or failed.</summary>
+    private async Task<bool> WaitNavigationAsync()
     {
         var navDone = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         ulong targetNavigationId = 0;
@@ -346,9 +340,9 @@ public partial class PreviewView : UserControl, IDisposable
         {
             WebView.CoreWebView2.NavigationCompleted -= Completed;
             WebView.CoreWebView2.NavigationStarting -= Starting;
-            return;
+            return false;
         }
-        await navDone.Task;
+        return await navDone.Task;
     }
 
     private void WebView_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
@@ -465,6 +459,9 @@ public partial class PreviewView : UserControl, IDisposable
             var script =
                 "(async function(){" +
                 "try{ if(window.__mdPrintReady) await window.__mdPrintReady; }catch(e){}" +
+                // Real heights: content-visibility would report placeholder
+                // estimates for offscreen blocks and misclassify .md-keep.
+                "document.documentElement.classList.add('md-measuring');" +
                 "var b=document.body;" +
                 "var prev={w:b.style.width,m:b.style.maxWidth,p:b.style.padding};" +
                 "b.style.maxWidth='none';b.style.width='" + contentW + "px';b.style.padding='0';" +
@@ -475,6 +472,7 @@ public partial class PreviewView : UserControl, IDisposable
                 "else el.classList.remove('md-keep');" +
                 "});" +
                 "b.style.width=prev.w;b.style.maxWidth=prev.m;b.style.padding=prev.p;" +
+                "document.documentElement.classList.remove('md-measuring');" +
                 "return 'ok';" +
                 "})()";
             await core.ExecuteScriptAsync(script);
@@ -501,7 +499,7 @@ public partial class PreviewView : UserControl, IDisposable
 // relative file, …) would show an error/warning page and destroy the preview.
 // Navigations that stay on the current document are handled by
 // PreviewNavigationPolicy: fragment jumps (#anchor) are allowed, self-reloads
-// are cancelled quietly (the page is a temp file that may already be gone).
+// are cancelled quietly (the page lives in memory and is served per render).
 private void OnPreviewNavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
         if (!e.IsUserInitiated)

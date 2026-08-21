@@ -54,6 +54,7 @@ public partial class MainWindow : Window
         _dialogService = dialogService;
         _imagePaster = imagePaster;
         _fileWatcher = new FileWatcher();
+        ViewModel.SaveWriteCompleted += OnSaveWriteCompleted;
         DataContext = ViewModel;
 
         _debounceTimer = new DispatcherTimer(DispatcherPriority.Background)
@@ -102,28 +103,79 @@ public partial class MainWindow : Window
             ViewModel.CaretLine = Editor.CaretLine;
             ViewModel.CaretColumn = Editor.CaretColumn;
             if (Outline.Visibility == Visibility.Visible)
-                Outline.HighlightLine(Editor.CaretLine);
+            {
+                // Deferred: HighlightLine scrolls the outline ListBox into
+                // view, and a synchronous layout from inside a caret event
+                // (which also fires mid document-swap inside AvalonEdit)
+                // once crashed SelectionLayer rendering — never force layout
+                // from caret events again.
+                Dispatcher.BeginInvoke(() => Outline.HighlightLine(Editor.CaretLine));
+            }
         };
         Outline.HeadingClicked += OnOutlineHeadingClicked;
         OutlineSplitter.DragCompleted += OutlineSplitter_DragCompleted;
         FilesSplitter.DragCompleted += FilesSplitter_DragCompleted;
         // Tree clicks keep the current view mode (only the launch double-click
         // opens into the default preview mode).
-        Files.OpenFileRequested += path => ViewModel.OpenPath(path, keepViewMode: true);
+        Files.OpenFileRequested += path =>
+        {
+            Editor.FlushPendingText(); // dirty-check inside OpenPath must see the latest text
+            _ = ViewModel.OpenPathAsync(path, keepViewMode: true);
+        };
         Preview.SourceLineRequested += OnPreviewSourceLineRequested;
         _fileWatcher.ExternalChanged += (_, _) => Dispatcher.BeginInvoke(OnExternalChange);
         Closing += OnClosing;
     }
 
+    // Scroll-sync throttling: ScrollChanged fires dozens of times per second
+    // while scrolling, and each unsuppressed send was a cross-process
+    // ExecuteScriptAsync. Coalesce to ~30 Hz (leading edge immediate, one
+    // trailing send), skip sub-0.1% changes, and pause while the preview is
+    // navigating (the WebView scroll state resets on navigation anyway).
+    private const int ScrollSyncMinIntervalMs = 33;
+    private DateTime _lastScrollSendUtc = DateTime.MinValue;
+    private double _lastSentScrollProportion = -1;
+    private bool _scrollFlushScheduled;
+
     private void OnEditorScroll(object? sender, EventArgs e)
     {
         if (!ViewModel.ScrollSync || !_previewVisible)
             return;
-        _ = Preview.SetScrollProportionAsync(Editor.ScrollProportion);
+        var sinceLast = (DateTime.UtcNow - _lastScrollSendUtc).TotalMilliseconds;
+        if (sinceLast >= ScrollSyncMinIntervalMs)
+        {
+            SendScrollSync();
+            return;
+        }
+        if (_scrollFlushScheduled)
+            return;
+        _scrollFlushScheduled = true;
+        _ = DelayedScrollFlushAsync(ScrollSyncMinIntervalMs - sinceLast);
+    }
+
+    private async Task DelayedScrollFlushAsync(double delayMs)
+    {
+        await Task.Delay(TimeSpan.FromMilliseconds(delayMs));
+        _scrollFlushScheduled = false;
+        if (ViewModel.ScrollSync && _previewVisible)
+            SendScrollSync();
+    }
+
+    private void SendScrollSync()
+    {
+        if (!_previewVisible || !ViewModel.ScrollSync || Preview.IsNavigating)
+            return;
+        var proportion = Editor.ScrollProportion;
+        if (Math.Abs(proportion - _lastSentScrollProportion) < 0.001)
+            return;
+        _lastSentScrollProportion = proportion;
+        _lastScrollSendUtc = DateTime.UtcNow;
+        _ = Preview.SetScrollProportionAsync(proportion);
     }
 
     private void OnExternalChange()
     {
+        Editor.FlushPendingText(); // IsDirty below must reflect the very latest edit
         if (ViewModel.FilePath == null)
             return;
 
@@ -152,13 +204,31 @@ public partial class MainWindow : Window
             // reopening the same path): the pre-built rope still needs to
             // reach the editor instead of a UI-thread Text replacement.
             ConsumePendingDocument();
-            if (_previewVisible && ViewModel.DocumentTier != DocumentTier.Large)
+            if (ViewModel.IsLoadingDocument)
             {
-                _debounceTimer.Stop();
-                _debounceTimer.Start();
+                // Document switch: render NOW. The debounce exists to coalesce
+                // rapid typing; an opened file is a one-shot change, and the
+                // tier-scaled interval made the preview lag behind the
+                // outline on every file open.
+                if (_previewVisible)
+                    RenderNow();
+                UpdateOutline();
             }
-            _outlineTimer.Stop();
-            _outlineTimer.Start();
+            else
+            {
+                if (_previewVisible && ViewModel.DocumentTier != DocumentTier.Large)
+                {
+                    if (EffectiveRenderDebounceMs() == 0)
+                        RenderNow(); // debounce disabled (RenderDebounceMs = 0)
+                    else
+                    {
+                        _debounceTimer.Stop();
+                        _debounceTimer.Start();
+                    }
+                }
+                _outlineTimer.Stop();
+                _outlineTimer.Start();
+            }
         }
         else if (e.PropertyName == nameof(ViewModel.FilePath))
         {
@@ -552,14 +622,40 @@ public partial class MainWindow : Window
         _ = RenderCoreAsync();
     }
 
+    /// <summary>Last page handed to the preview — skips WebView navigations for byte-identical content.</summary>
+    private string? _lastAppliedPage;
+
     private async Task RenderCoreAsync()
     {
         try
         {
             var html = await ViewModel.BuildPreviewDocumentAsync();
             if (html == null)
-                return; // superseded by a newer render or cancelled
+            {
+                // Superseded by a newer render or cancelled: a newer render
+                // owns the preview and will set the final status. But if THIS
+                // was the newest one and something merely cancelled it, don't
+                // leave a dangling "Rendering…" in the status bar forever.
+                // Superseded by a newer render or cancelled: a newer render
+                // owns the preview and will set the final status. But if THIS
+                // was the newest one and something merely cancelled it, don't
+                // leave a dangling "Rendering…" in the status bar forever.
+                if (PreviewStatus.Text == "Rendering…")
+                    PreviewStatus.Text = "Preview: idle";
+                return;
+            }
+            if (ReferenceEquals(html, _lastAppliedPage))
+            {
+                // Same text and theme (view-mode toggle, panel resize):
+                // the WebView already shows this exact page — don't pay a
+                // full navigation + hljs/KaTeX/Mermaid re-run for it.
+                if (_previewVisible)
+                    PreviewStatus.Text = "Preview: synced ✓";
+                return;
+            }
             await Preview.UpdateAsync(html, ViewModel.DocumentFolder);
+            _lastAppliedPage = html;
+            _lastSentScrollProportion = -1; // page height changed — dead zone starts fresh
             if (_previewVisible)
                 PreviewStatus.Text = "Preview: synced ✓";
         }
@@ -569,16 +665,22 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>Debounce scales with the document tier (150 ms realtime, 1.5 s medium).</summary>
+    /// <summary>
+    /// Typing→preview debounce in ms. 0 = debounce DISABLED (render fires on
+    /// the very change; the render gate's cancel + latest-wins keeps this
+    /// correct, at the cost of re-parsing per burst on large documents).
+    /// Document switches always render immediately, regardless of this.
+    /// </summary>
+    private int EffectiveRenderDebounceMs() => ViewModel.DocumentTier switch
+    {
+        DocumentTier.RealTime => Math.Max(0, ViewModel.RenderDebounceMs),
+        DocumentTier.Medium => Math.Max(0, ViewModel.RenderDebounceMs),
+        _ => 60000 // Large: the preview timer is never started anyway.
+    };
+
     private void UpdateDebounceForTier()
     {
-        var ms = ViewModel.DocumentTier switch
-        {
-            DocumentTier.RealTime => Math.Max(50, ViewModel.RenderDebounceMs),
-            DocumentTier.Medium => 1500,
-            _ => 60000 // Large: the preview timer is never started anyway.
-        };
-        _debounceTimer.Interval = TimeSpan.FromMilliseconds(ms);
+        _debounceTimer.Interval = TimeSpan.FromMilliseconds(Math.Max(1, EffectiveRenderDebounceMs()));
     }
 
     /// <summary>Large-file mode wiring: read-only editor, preview placeholder, status.</summary>
@@ -599,7 +701,10 @@ public partial class MainWindow : Window
     {
         if (ViewModel.PendingDocument == null)
             return;
-        Editor.LoadDocument(ViewModel.PendingDocument);
+        // Share the VM's string instance so the DP→VM binding push-back and
+        // the VM's own DocumentText assignment are reference-equal (no O(n)
+        // rope→string rebuilds, no full-content compares for the same text).
+        Editor.LoadDocument(ViewModel.PendingDocument, ViewModel.DocumentText);
         ViewModel.PendingDocument = null;
     }
 
@@ -724,7 +829,7 @@ public partial class MainWindow : Window
         {
             var captured = path;
             var item = new MenuItem { Header = Path.GetFileName(path), ToolTip = path };
-            item.Click += (_, _) => ViewModel.OpenPath(captured);
+            item.Click += (_, _) => { Editor.FlushPendingText(); _ = ViewModel.OpenPathAsync(captured); };
             RecentMenu.Items.Add(item);
         }
 
@@ -763,21 +868,56 @@ public partial class MainWindow : Window
         Editor.ShowReplace();
     }
 
-    private void OnClosing(object? sender, CancelEventArgs e)
+    private bool _shutdownReady;
+
+    private async void OnClosing(object? sender, CancelEventArgs e)
     {
-        if (ViewModel.IsDirty && ViewModel.AskUnsavedOnClose() == UnsavedChoice.Cancel)
-            e.Cancel = true;
-        else
+        Editor.FlushPendingText(); // last-instant edits must count for the dirty prompt
+        if (!_shutdownReady)
         {
-            _fileWatcher.Dispose();
-            Preview.Dispose(); // #2: release WebView2 + Chromium children cleanly.
+            var choice = UnsavedChoice.DontSave;
+            try
+            {
+                choice = ViewModel.IsDirty
+                    ? await ViewModel.AskUnsavedOnCloseAsync()
+                    : UnsavedChoice.DontSave;
+            }
+            catch
+            {
+                // The dirty prompt/save path must never take the window down
+                // mid-close; treat a failure as "don't save" and proceed.
+            }
+            if (choice == UnsavedChoice.Cancel)
+            {
+                e.Cancel = true;
+                return;
+            }
+            if (ViewModel.IsSaveInFlight)
+            {
+                // A background write is still landing on disk: hold the close,
+                // wait for it, then re-close (second pass tears down below).
+                e.Cancel = true;
+                try { await ViewModel.AllSavesCompletedAsync(); }
+                catch { /* teardown must continue regardless */ }
+                _shutdownReady = true;
+                Close();
+                return;
+            }
         }
+        _fileWatcher.Dispose();
+        Preview.Dispose(); // #2: release WebView2 + Chromium children cleanly.
     }
 
-    private void New_Executed(object sender, ExecutedRoutedEventArgs e) => ViewModel.NewDocumentCommand.Execute(null);
-    private void Open_Executed(object sender, ExecutedRoutedEventArgs e) => ViewModel.OpenCommand.Execute(null);
-    private void Save_Executed(object sender, ExecutedRoutedEventArgs e) { _fileWatcher.NotifySelfSave(); ViewModel.SaveCommand.Execute(null); }
-    private void SaveAs_Executed(object sender, ExecutedRoutedEventArgs e) { _fileWatcher.NotifySelfSave(); ViewModel.SaveAsCommand.Execute(null); }
+    private void New_Executed(object sender, ExecutedRoutedEventArgs e) { Editor.FlushPendingText(); ViewModel.NewDocumentCommand.Execute(null); }
+    private void Open_Executed(object sender, ExecutedRoutedEventArgs e) { Editor.FlushPendingText(); ViewModel.OpenCommand.Execute(null); }
+    private void Save_Executed(object sender, ExecutedRoutedEventArgs e) { Editor.FlushPendingText(); _fileWatcher.NotifySelfSave(); ViewModel.SaveCommand.Execute(null); }
+    private void SaveAs_Executed(object sender, ExecutedRoutedEventArgs e) { Editor.FlushPendingText(); _fileWatcher.NotifySelfSave(); ViewModel.SaveAsCommand.Execute(null); }
+
+    // Saves write asynchronously now: the FileWatcher's 2-second self-save
+    // ignore window may expire BEFORE a slow write lands, which would make
+    // our own save look like an external change ("reload?"). The window is
+    // armed up front (above) and RE-ARMED when the write completes.
+    private void OnSaveWriteCompleted() => _fileWatcher.NotifySelfSave();
 
     private bool _isExportingPdf;
 
@@ -788,6 +928,11 @@ public partial class MainWindow : Window
             _dialogService.Warn("A PDF export is already in progress.", "Export");
             return;
         }
+
+        // BuildPdfDocument reads the view-model text — flush the debounced
+        // editor push so the PDF matches what's on screen (also keeps the
+        // size-gate checks below accurate).
+        Editor.FlushPendingText();
 
         if (ViewModel.DocumentTier == DocumentTier.Large &&
             ViewModel.DocumentBytes > DocumentTierResolver.PdfExportLimitBytes)
@@ -867,7 +1012,8 @@ public partial class MainWindow : Window
                 Path.GetExtension(f).ToLowerInvariant() is ".md" or ".markdown");
             if (markdown != null)
             {
-                ViewModel.OpenPath(markdown);
+                Editor.FlushPendingText();
+                _ = ViewModel.OpenPathAsync(markdown);
                 return;
             }
 

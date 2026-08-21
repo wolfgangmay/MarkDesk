@@ -91,6 +91,15 @@ div.warning > :last-child,div.danger > :last-child,div.note > :last-child,div.in
 .markdown-alert-important {{ border-left-color:#8250df; background:#8250df14; }} .markdown-alert-important .markdown-alert-title {{ color:#8250df; }}
 .markdown-alert-warning {{ border-left-color:#9a6700; background:#9a670014; }} .markdown-alert-warning .markdown-alert-title {{ color:#9a6700; }}
 .markdown-alert-caution {{ border-left-color:#cf222e; background:#cf222e14; }} .markdown-alert-caution .markdown-alert-title {{ color:#cf222e; }}
+/* Long-document first paint: skip layout/paint of offscreen blocks. Without
+   this a multi-MB document (~100k nodes) pays full layout before load, which
+   made every file switch show the preview seconds late. Print media keeps
+   full layout (pagination must see real heights), and the print-measure
+   pass disables it too (see ApplyPrintLayoutAsync). */
+@media screen {{
+  body > :not(script) {{ content-visibility:auto; contain-intrinsic-size:auto 480px; }}
+  html.md-measuring body > :not(script) {{ content-visibility:visible; }}
+}}
 </style>
 <style media=""print"">
 /* Page geometry (size + margins) comes exclusively from the WebView2 print
@@ -166,17 +175,22 @@ pre {{ white-space:pre-wrap; word-break:break-word; }}
       if(el){{ e.preventDefault(); el.scrollIntoView({{behavior:'smooth'}}); }}
     }});
   }})();
-  if (window.hljs) {{ hljs.highlightAll(); }}
+  if (window.hljs && document.querySelector('pre code')) {{ hljs.highlightAll(); }}
   if (window.renderMathInElement) {{
-    renderMathInElement(document.body, {{
-      delimiters:[
-        {{left:'$$',right:'$$',display:true}},
-        {{left:'$',right:'$',display:false}},
-        {{left:'\\\\(',right:'\\\\)',display:false}},
-        {{left:'\\\\[',right:'\\\\]',display:true}}
-      ],
-      throwOnError:false
-    }});
+    // Auto-render walks every text node — seconds on a multi-MB document.
+    // Skip it entirely when the text cannot contain math (no delimiters).
+    var mdText = document.body.textContent || '';
+    if (mdText.indexOf('$') >= 0 || mdText.indexOf('\\\\(') >= 0 || mdText.indexOf('\\\\[') >= 0) {{
+      renderMathInElement(document.body, {{
+        delimiters:[
+          {{left:'$$',right:'$$',display:true}},
+          {{left:'$',right:'$',display:false}},
+          {{left:'\\\\(',right:'\\\\)',display:false}},
+          {{left:'\\\\[',right:'\\\\]',display:true}}
+        ],
+        throwOnError:false
+      }});
+    }}
   }}
   if (window.mermaid) {{
     mermaid.initialize({{

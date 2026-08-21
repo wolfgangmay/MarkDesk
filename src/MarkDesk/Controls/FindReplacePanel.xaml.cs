@@ -78,9 +78,8 @@ public partial class FindReplacePanel : UserControl
 
     private bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c == '_';
 
-    private bool IsWholeWord(int idx, int len)
+    private bool IsWholeWord(string text, int idx, int len)
     {
-        var text = _editor!.Document.Text;
         if (idx > 0 && IsWordChar(text[idx - 1])) return false;
         if (idx + len < text.Length && IsWordChar(text[idx + len])) return false;
         return true;
@@ -135,7 +134,7 @@ public partial class FindReplacePanel : UserControl
             {
                 var idx = text.IndexOf(term, pos, Comparison);
                 if (idx < 0) break;
-                if (!whole || IsWholeWord(idx, term.Length))
+                if (!whole || IsWholeWord(text, idx, term.Length))
                     _matches.Add((idx, term.Length));
                 pos = idx + 1;
             }
@@ -257,7 +256,7 @@ public partial class FindReplacePanel : UserControl
                     break;
                 }
                 sb.Append(text, pos, idx - pos);
-                if (whole && !IsWholeWord(idx, term.Length))
+                if (whole && !IsWholeWord(text, idx, term.Length))
                 {
                     sb.Append(term);
                     pos = idx + term.Length;

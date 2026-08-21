@@ -77,11 +77,13 @@ public partial class MainViewModel : ObservableObject
         get => _documentText;
         set
         {
+            // Cancel any in-flight render of the OLD text BEFORE the change
+            // notification: the notification may synchronously start the next
+            // render (document switch renders immediately), and cancelling
+            // after the notification would kill that just-started render.
+            _renderCts?.Cancel();
             if (SetProperty(ref _documentText, value))
             {
-                // Any in-flight render is now stale; cancel it so a slow
-                // background render can't compete with the next keystroke.
-                _renderCts?.Cancel();
                 if (!_isLoading)
                     IsDirty = true;
                 UpdateWordCount();
@@ -142,6 +144,17 @@ public partial class MainViewModel : ObservableObject
         return _previewTemplate.Build(body, IsPreviewDark);
     }
 
+    // Render cache, keyed by text reference: theme flips and view-mode
+    // toggles re-render byte-identical content, and the outline needs the
+    // same syntax tree the preview just parsed. The AST is held weakly so a
+    // multi-MB document's tree is never pinned in memory (outline falls
+    // back to its own parse once the GC collects it).
+    private string? _renderText;
+    private string? _renderBody;
+    private WeakReference<Markdig.Syntax.MarkdownDocument>? _renderAst;
+    private string? _renderPage;
+    private bool _renderPageDark;
+
     /// <summary>
     /// Background preview render: cancels any in-flight render, runs the
     /// Markdig pass off the UI thread, and returns null when a newer render
@@ -150,16 +163,39 @@ public partial class MainViewModel : ObservableObject
     public async Task<string?> BuildPreviewDocumentAsync()
     {
         _renderCts?.Cancel();
-        _renderCts?.Dispose();
         var cts = _renderCts = new CancellationTokenSource();
         var version = _renderGate.Next();
         try
         {
-            var body = await Task.Run(
-                () => _markdownRenderer.RenderToHtml(DocumentText, cts.Token), cts.Token);
+            var text = DocumentText;
+            string body;
+            if (ReferenceEquals(text, _renderText) && _renderBody != null)
+            {
+                // Same text as the last render (view-mode toggle, layout
+                // change): reuse the body, skip the multi-second parse.
+                body = _renderBody;
+            }
+            else
+            {
+                var (html, ast) = await Task.Run(() =>
+                {
+                    // Parse once for both the HTML and the outline (B2).
+                    var doc = _markdownRenderer.Parse(text);
+                    return (_markdownRenderer.RenderToHtml(doc, cts.Token), doc);
+                }, cts.Token);
+                _renderText = text;
+                _renderBody = body = html;
+                _renderAst = new WeakReference<Markdig.Syntax.MarkdownDocument>(ast);
+                _renderPage = null; // body changed → page cache is stale
+            }
             if (cts.IsCancellationRequested || !_renderGate.TryClaim(version))
                 return null;
-            return _previewTemplate.Build(body, IsPreviewDark);
+            if (_renderPage == null || _renderPageDark != IsPreviewDark)
+            {
+                _renderPage = _previewTemplate.Build(body, IsPreviewDark);
+                _renderPageDark = IsPreviewDark;
+            }
+            return _renderPage;
         }
         catch (OperationCanceledException)
         {
@@ -170,18 +206,32 @@ public partial class MainViewModel : ObservableObject
     /// <summary>
     /// Heading outline. Tier 3 (large file) uses the fast line scan instead
     /// of a full Markdig parse — the cost difference is seconds vs hundreds
-    /// of milliseconds at 5+ MB.
+    /// of milliseconds at 5+ MB. Other tiers reuse the preview's parse when
+    /// it is still alive (weak reference).
     /// </summary>
-    public IReadOnlyList<OutlineItem> BuildOutline() =>
-        DocumentTier == DocumentTier.Large
-            ? FastOutlineScanner.Extract(DocumentText)
-            : OutlineParser.Extract(_markdownRenderer.Parse(DocumentText));
+    public IReadOnlyList<OutlineItem> BuildOutline()
+    {
+        if (DocumentTier == DocumentTier.Large)
+            return FastOutlineScanner.Extract(DocumentText);
+
+        if (ReferenceEquals(DocumentText, _renderText) &&
+            _renderAst is { } weak &&
+            weak.TryGetTarget(out var ast))
+        {
+            return OutlineParser.Extract(ast);
+        }
+        return OutlineParser.Extract(_markdownRenderer.Parse(DocumentText));
+    }
 
     // PDF export always uses light theme regardless of the app's current theme,
     // so the printed document is consistently readable on paper.
     public string BuildPdfDocument()
     {
-        var body = _markdownRenderer.RenderToHtml(DocumentText);
+        // Reference-equal text ⇒ the cached body is byte-identical; skips a
+        // multi-second parse when the preview already rendered this content.
+        var body = ReferenceEquals(DocumentText, _renderText) && _renderBody != null
+            ? _renderBody
+            : _markdownRenderer.RenderToHtml(DocumentText);
         return _previewTemplate.Build(body, dark: false);
     }
 
@@ -215,9 +265,9 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void NewDocument()
+    private async Task NewDocumentAsync()
     {
-        if (!EnsureSaved())
+        if (!await EnsureSavedAsync())
             return;
         SetDocument(string.Empty, null, new DetectedEncoding(new UTF8Encoding(false), "UTF-8", false));
     }
@@ -225,14 +275,14 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task OpenAsync()
     {
-        if (!EnsureSaved())
+        if (!await EnsureSavedAsync())
             return;
         var path = _dialogService.PickOpenMarkdownFile();
         if (path != null)
             await LoadFromAsync(path);
     }
 
-    public void OpenPath(string path, bool keepViewMode = false)
+    public async Task OpenPathAsync(string path, bool keepViewMode = false)
     {
         if (!File.Exists(path))
             return;
@@ -240,9 +290,9 @@ public partial class MainViewModel : ObservableObject
         // would make DocumentFolder relative, which WebView2's virtual-host
         // mapping rejects — silently breaking rendering.
         path = Path.GetFullPath(path);
-        if (!EnsureSaved())
+        if (!await EnsureSavedAsync())
             return;
-        _ = LoadFromAsync(path, keepViewMode);
+        await LoadFromAsync(path, keepViewMode);
     }
 
     public async Task ReloadCurrentAsync()
@@ -266,23 +316,23 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Save()
+    private async Task SaveAsync()
     {
         if (FilePath == null)
         {
-            SaveAs();
+            await SaveAsAsync();
             return;
         }
-        DoSaveTo(FilePath);
+        await DoSaveToAsync(FilePath);
     }
 
     [RelayCommand]
-    private void SaveAs()
+    private async Task SaveAsAsync()
     {
         var path = _dialogService.PickSaveMarkdownFile(FilePath);
         if (path == null)
             return;
-        if (DoSaveTo(path))
+        if (await DoSaveToAsync(path))
             FilePath = path;
     }
 
@@ -355,21 +405,88 @@ public partial class MainViewModel : ObservableObject
         return new TextDocument(new RopeTextSource(rope));
     }
 
-    private bool DoSaveTo(string path)
+    // In-flight background writes. The semaphore serializes the actual disk
+    // writes across ALL save entry points (Save / SaveAs / EnsureSaved): each
+    // write is atomic (GUID temp + overwrite Move), but two concurrent writes
+    // could land out of order — the older snapshot's Move arriving last would
+    // leave stale content on disk while the dirty flag was already cleared.
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
+    private readonly List<Task> _inFlightSaves = new();
+
+    /// <summary>Raised on the UI thread after a save finishes writing to disk.</summary>
+    public event Action? SaveWriteCompleted;
+
+    /// <summary>True while at least one save is writing on a background thread.</summary>
+    public bool IsSaveInFlight
     {
-        try
+        get
         {
-            _fileService.Save(path, DocumentText, _currentEncoding.Encoding);
-            IsDirty = false;
-            UpdateTitle();
-            AddRecent(path);
-            return true;
+            _inFlightSaves.RemoveAll(t => t.IsCompleted);
+            return _inFlightSaves.Count > 0;
         }
-        catch (Exception ex)
+    }
+
+    /// <summary>Completes when every save started so far has finished writing.</summary>
+    public Task AllSavesCompletedAsync()
+    {
+        _inFlightSaves.RemoveAll(t => t.IsCompleted);
+        return Task.WhenAll(_inFlightSaves);
+    }
+
+    private async Task<bool> DoSaveToAsync(string path)
+    {
+        // Snapshot on the UI thread: the write runs on the thread pool while
+        // the user may keep typing.
+        var text = DocumentText;
+        var encoding = _currentEncoding.Encoding;
+
+        Exception? error = null;
+        var write = Task.Run(async () =>
         {
-            _dialogService.Warn($"Failed to save file:\n{ex.Message}", "Save error");
+            // Serialized: a queued save waits here so an older snapshot can
+            // never overwrite a newer one that landed first.
+            await _writeLock.WaitAsync();
+            try
+            {
+                _fileService.Save(path, text, encoding);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex; // dialog must be shown on the UI thread, not here
+                return false;
+            }
+            finally
+            {
+                _writeLock.Release();
+            }
+        });
+        _inFlightSaves.Add(write);
+        var ok = await write;
+
+        SaveWriteCompleted?.Invoke(); // caller re-arms the FileWatcher ignore window AFTER the write lands
+
+        if (!ok)
+        {
+            _dialogService.Warn($"Failed to save file:\n{error?.Message}", "Save error");
             return false;
         }
+
+        // Clear the dirty flag only when nothing was edited while the
+        // write was in flight: every DocumentText push produces a new
+        // string reference, so a reference check is sufficient.
+        if (ReferenceEquals(DocumentText, text))
+            IsDirty = false;
+        UpdateTitle();
+        try
+        {
+            AddRecent(path); // persists settings.json — must not take the app down on IO errors
+        }
+        catch
+        {
+            // Recent-list persistence is best-effort; the document itself is saved.
+        }
+        return ok;
     }
 
     private void SetDocument(string text, string? path, DetectedEncoding encoding, TextDocument? document = null)
@@ -377,6 +494,14 @@ public partial class MainViewModel : ObservableObject
         _isLoading = true;
         try
         {
+            // Free the previous document's cached render (multi-MB bodies
+            // shouldn't linger after a file switch). Reference-keyed lookups
+            // would miss anyway; this just releases memory promptly.
+            _renderText = null;
+            _renderBody = null;
+            _renderPage = null;
+            _renderAst = null;
+
             // Tier BEFORE DocumentText: the word-count update triggered by
             // DocumentText checks the tier (skips the multi-MB split in
             // large-file mode). With the old order a newly opened LARGE
@@ -417,7 +542,15 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string? _openProgressText;
 
-    private bool EnsureSaved()
+    /// <summary>
+    /// True while SetDocument is assigning a freshly loaded document. Lets the
+    /// window distinguish a document SWITCH (render immediately) from typing
+    /// (render on the typing debounce — waiting it out after every file open
+    /// made the preview visibly lag the outline).
+    /// </summary>
+    public bool IsLoadingDocument => _isLoading;
+
+    private async Task<bool> EnsureSavedAsync()
     {
         if (!IsDirty)
             return true;
@@ -425,13 +558,13 @@ public partial class MainViewModel : ObservableObject
         var choice = _dialogService.AskUnsavedChanges();
         return choice switch
         {
-            UnsavedChoice.Save => DoSaveForEnsure(),
+            UnsavedChoice.Save => await DoSaveForEnsureAsync(),
             UnsavedChoice.DontSave => true,
             _ => false
         };
     }
 
-    public UnsavedChoice AskUnsavedOnClose()
+    public async Task<UnsavedChoice> AskUnsavedOnCloseAsync()
     {
         if (!IsDirty)
             return UnsavedChoice.DontSave;
@@ -444,13 +577,13 @@ public partial class MainViewModel : ObservableObject
                 var path = _dialogService.PickSaveMarkdownFile(FilePath);
                 if (path == null)
                     return UnsavedChoice.Cancel;
-                if (!DoSaveTo(path))
+                if (!await DoSaveToAsync(path))
                     return UnsavedChoice.Cancel;
                 FilePath = path;
             }
             else
             {
-                if (!DoSaveTo(FilePath))
+                if (!await DoSaveToAsync(FilePath))
                     return UnsavedChoice.Cancel;
             }
             return UnsavedChoice.Save;
@@ -458,19 +591,19 @@ public partial class MainViewModel : ObservableObject
         return choice;
     }
 
-    private bool DoSaveForEnsure()
+    private async Task<bool> DoSaveForEnsureAsync()
     {
         if (FilePath == null)
         {
             var path = _dialogService.PickSaveMarkdownFile(FilePath);
             if (path == null)
                 return false;
-            if (!DoSaveTo(path))
+            if (!await DoSaveToAsync(path))
                 return false;
             FilePath = path;
             return true;
         }
-        return DoSaveTo(FilePath);
+        return await DoSaveToAsync(FilePath);
     }
 
     private void UpdateTitle()
@@ -482,11 +615,31 @@ public partial class MainViewModel : ObservableObject
 
     private void UpdateWordCount()
     {
-        // Skipped in large-file mode: word-splitting 5+ MB allocates heavily.
+        // Skipped in large-file mode: scanning 5+ MB per change is wasted work.
         if (DocumentTier == DocumentTier.Large)
             return;
-        WordCount = string.IsNullOrWhiteSpace(DocumentText)
-            ? 0
-            : DocumentText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+        WordCount = CountWords(DocumentText.AsSpan());
+    }
+
+    /// <summary>
+    /// Allocation-free word count. Matches the semantics of
+    /// <c>text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length</c>
+    /// (whitespace-separated runs) without materializing an array of substrings.
+    /// </summary>
+    private static int CountWords(ReadOnlySpan<char> text)
+    {
+        var count = 0;
+        var inWord = false;
+        foreach (var c in text)
+        {
+            if (char.IsWhiteSpace(c))
+                inWord = false;
+            else if (!inWord)
+            {
+                inWord = true;
+                count++;
+            }
+        }
+        return count;
     }
 }

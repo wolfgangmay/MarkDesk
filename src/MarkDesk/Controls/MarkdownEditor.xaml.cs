@@ -34,6 +34,28 @@ public partial class MarkdownEditor : UserControl
 
     private bool _suppress;
     private ScrollViewer? _scrollViewer;
+    private System.Windows.Threading.DispatcherTimer? _syncTimer;
+
+    /// <summary>
+    /// Caret-event re-entrancy guard. Swapping or replacing the document
+    /// resets the caret INSIDE the AvalonEdit property change; subscribers
+    /// of <see cref="CaretPositionChanged"/> (outline highlight →
+    /// ScrollIntoView) then force a synchronous layout over a TextView whose
+    /// selection/document state is still mid-swap — e.g. an old selection at
+    /// offset 343 resolved against a new empty document crashes with
+    /// ArgumentOutOfRangeException in SelectionLayer.OnRender. Caret resets
+    /// caused by document swaps are internal, not user actions: don't raise.
+    /// </summary>
+    private bool _caretEventsSuppressed;
+
+    /// <summary>
+    /// Editor → VM pushes are debounced by this interval: AvalonEdit's
+    /// Document.Text getter materializes the whole rope, so pushing per
+    /// keystroke is O(document) work plus a full-string compare each key.
+    /// Consumers that must see the very latest text call
+    /// <see cref="FlushPendingText"/> first (save, export, close, reload).
+    /// </summary>
+    private static readonly TimeSpan SyncDebounce = TimeSpan.FromMilliseconds(150);
 
     /// <summary>Gate for the typing assists (list continuation, wrapping). Set from settings.</summary>
     public bool TypingAssistsEnabled { get; set; } = true;
@@ -49,7 +71,11 @@ public partial class MarkdownEditor : UserControl
         Finder.Attach(Editor);
 
         Editor.TextChanged += (_, _) => SyncToProperty();
-        Editor.TextArea.Caret.PositionChanged += (_, _) => CaretPositionChanged?.Invoke(this, EventArgs.Empty);
+        Editor.TextArea.Caret.PositionChanged += (_, _) =>
+        {
+            if (!_caretEventsSuppressed)
+                CaretPositionChanged?.Invoke(this, EventArgs.Empty);
+        };
         Editor.PreviewMouseWheel += OnEditorPreviewMouseWheel;
         Editor.TextArea.PreviewKeyDown += OnTextAreaPreviewKeyDown;
         Editor.TextArea.TextEntering += OnTextAreaTextEntering;
@@ -331,19 +357,25 @@ public partial class MarkdownEditor : UserControl
     /// <summary>
     /// Loads a pre-built document (large-file mode): the rope structure is
     /// built off the UI thread, so this swaps only a reference — far cheaper
-    /// than assigning Document.Text on the UI thread.
+    /// than assigning Document.Text on the UI thread. Pass the view-model's
+    /// text instance when available: the dependency property and the view
+    /// model then share one string reference, and every later equality check
+    /// (binding push-back, VM SetProperty) short-circuits instead of doing
+    /// an O(n) build+compare of the same multi-MB content.
     /// </summary>
-    public void LoadDocument(ICSharpCode.AvalonEdit.Document.TextDocument document)
+    public void LoadDocument(ICSharpCode.AvalonEdit.Document.TextDocument document, string? text = null)
     {
+        _caretEventsSuppressed = true;
         _suppress = true;
         try
         {
             Editor.Document = document;
-            SetCurrentValue(DocumentTextProperty, document.Text);
+            SetCurrentValue(DocumentTextProperty, text ?? document.Text);
         }
         finally
         {
             _suppress = false;
+            _caretEventsSuppressed = false;
         }
     }
 
@@ -366,6 +398,7 @@ public partial class MarkdownEditor : UserControl
         if (d is MarkdownEditor editor && !editor._suppress)
         {
             editor._suppress = true;
+            editor._caretEventsSuppressed = true;
             try
             {
                 var newText = (e.NewValue as string) ?? string.Empty;
@@ -374,6 +407,7 @@ public partial class MarkdownEditor : UserControl
             }
             finally
             {
+                editor._caretEventsSuppressed = false;
                 editor._suppress = false;
             }
         }
@@ -388,6 +422,29 @@ public partial class MarkdownEditor : UserControl
     private void SyncToProperty()
     {
         TextChanged?.Invoke(this, EventArgs.Empty);
+        if (_suppress)
+            return;
+        if (_syncTimer == null)
+        {
+            _syncTimer = new System.Windows.Threading.DispatcherTimer(
+                System.Windows.Threading.DispatcherPriority.Background)
+            {
+                Interval = SyncDebounce
+            };
+            _syncTimer.Tick += (_, _) => FlushPendingText();
+        }
+        _syncTimer.Stop();
+        _syncTimer.Start();
+    }
+
+    /// <summary>
+    /// Pushes the editor text to the DocumentText property immediately if a
+    /// debounced push is still pending. Call before reading the bound
+    /// view-model text (save, PDF export, close, external reload).
+    /// </summary>
+    public void FlushPendingText()
+    {
+        _syncTimer?.Stop();
         if (_suppress)
             return;
         _suppress = true;
