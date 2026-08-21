@@ -32,7 +32,13 @@
 **注意**:warning 容器用于需要留意的项。
 :::
 
+::: warning注意:warning 容器用于需要留意的项 
+
 ::: danger
+**危险**:danger 容器用于严重警告。
+:::
+
+::: danger 
 **危险**:danger 容器用于严重警告。
 :::
 
